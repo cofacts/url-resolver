@@ -1,6 +1,4 @@
 /* eslint-env browser */
-
-const puppeteer = require('puppeteer');
 const path = require('path');
 const fs = require('fs');
 
@@ -64,7 +62,6 @@ async function scrap(browser, url) {
 
     return window.location.href;
   });
-
 
   const resultArticle = await page.evaluate(`
     (function(){
