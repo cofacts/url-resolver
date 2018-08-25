@@ -11,7 +11,7 @@ Run url resolver from built docker images
 
 ```bash
 $ docker pull johnsonliang/cofacts-url-resolver
-$ docker run -p 4000:4000 johnsonliang/cofacts-url-resolver
+$ docker run --rm -p 4000:4000 johnsonliang/cofacts-url-resolver
 ```
 
 Visit http://localhost:4000, you will be given a GraphQL Playground. Consult the schema on the right

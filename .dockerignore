@@ -2,3 +2,5 @@
 !package.json
 !package-lock.json
 !index.js
+!scrap.js
+!lib/*
