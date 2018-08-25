@@ -1,13 +1,23 @@
 const { ApolloServer, gql } = require('apollo-server');
 const puppeteer = require('puppeteer');
+const scrap = require('./scrap');
 
 const PORT = process.env.PORT || 4000;
 
 const browserPromise = puppeteer.launch({args: ['--no-sandbox', '--disable-setuid-sandbox']});
+browserPromise.then(() => {
+  console.log(`Browser launched successfully.`);
+})
 
 const typeDefs = gql`
   type UrlResolveResult {
-    raw: String
+    url: String
+    canonical: String
+    title: String
+    summary: String
+    html: String
+    topImageUrl: String
+    status: Int
   }
 
   type Query {
@@ -19,12 +29,7 @@ const resolvers = {
   Query: {
     resolvedUrls: async (root, {urls}) => {
       const browser = await browserPromise;
-      const page = await browser.newPage();
-      const response = await page.goto(urls[0]);
-      const raw = await page.content();
-      page.close();
-
-      return [{raw}]
+      return await Promise.all(urls.map(url => scrap(browser, url)))
     }
   }
 }

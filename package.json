@@ -11,7 +11,8 @@
   "license": "MIT",
   "dependencies": {
     "apollo-server": "^2.0.0",
-    "graphql": "^0.13.2"
+    "graphql": "^0.13.2",
+    "readability": "mozilla/readability"
   },
   "devDependencies": {
     "puppeteer": "^1.6.2"
