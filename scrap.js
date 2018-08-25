@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 
 const readabilityJsStr = fs.readFileSync(
-  path.join(__dirname, './node_modules/readability/Readability.js'),
+  path.join(__dirname, './lib/Readability.js'),
   { encoding: 'utf-8' }
 );
 

@@ -5,14 +5,14 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
+    "build": "docker build -t mrorz/cofacts-url-resolver:latest .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "MrOrz",
   "license": "MIT",
   "dependencies": {
     "apollo-server": "^2.0.0",
-    "graphql": "^0.13.2",
-    "readability": "mozilla/readability"
+    "graphql": "^0.13.2"
   },
   "devDependencies": {
     "puppeteer": "^1.6.2"
