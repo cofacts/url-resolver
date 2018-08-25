@@ -1,5 +1,7 @@
 # Cofacts URL Resolver
 
+[![Build Status](https://travis-ci.org/cofacts/url-resolver.svg?branch=master)](https://travis-ci.org/cofacts/url-resolver)
+
 A GraphQL service that scraps the specified URL and returns scrapped result and summary extracted by
 [Readability.js]
 
