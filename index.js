@@ -1,6 +1,11 @@
+require('dotenv').config();
+
 const { ApolloServer, gql } = require('apollo-server');
+const getVideoId = require('get-video-id');
+
 const scrap = require('./lib/scrap');
 const unshorten = require('./lib/unshorten');
+const fetchYoutube = require('./lib/fetchYoutube');
 
 const PORT = process.env.PORT || 4000;
 
@@ -26,11 +31,19 @@ const resolvers = {
       return await Promise.all(
         urls.map(async url => {
           const unshortened = await unshorten(url);
-          const scrapResult = await scrap(unshortened);
+          const { id: videoId, service } = getVideoId(unshortened);
 
+          let fetcher;
+          if (videoId && service === 'youtube') {
+            fetcher = fetchYoutube(videoId);
+          } else {
+            fetcher = scrap(unshortened);
+          }
+
+          const fetchResult = await fetcher;
           return {
             url,
-            ...scrapResult,
+            ...fetchResult,
           };
         })
       );
