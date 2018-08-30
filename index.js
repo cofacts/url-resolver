@@ -42,8 +42,8 @@ const resolvers = {
 
           const fetchResult = await fetcher;
           return {
-            url,
             ...fetchResult,
+            url,
           };
         })
       );
