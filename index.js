@@ -1,6 +1,6 @@
 const { ApolloServer, gql } = require('apollo-server');
-const scrap = require('./scrap');
-const unshorten = require('./unshorten');
+const scrap = require('./lib/scrap');
+const unshorten = require('./lib/unshorten');
 
 const PORT = process.env.PORT || 4000;
 
