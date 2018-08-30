@@ -1,6 +1,15 @@
 /* eslint-env browser */
 const path = require('path');
 const fs = require('fs');
+const puppeteer = require('puppeteer');
+
+const browserPromise = puppeteer.launch({
+  args: ['--no-sandbox', '--disable-setuid-sandbox'],
+});
+browserPromise.then(() => {
+  // eslint-disable-next-line no-console
+  console.log(`Browser launched successfully.`);
+});
 
 const readabilityJsStr = fs.readFileSync(
   path.join(__dirname, './lib/Readability.js'),
@@ -36,7 +45,8 @@ function executor() {
  * @param {string} url - The URL to scrap
  * @return {Promise<ScrapResult | null>}
  */
-async function scrap(browser, url) {
+async function scrap(url) {
+  const browser = await browserPromise;
   const page = await browser.newPage();
 
   page.setDefaultNavigationTimeout(5000);

@@ -1,17 +1,8 @@
-/* eslint-disable no-console */
-
 const { ApolloServer, gql } = require('apollo-server');
-const puppeteer = require('puppeteer');
 const scrap = require('./scrap');
+const unshorten = require('./unshorten');
 
 const PORT = process.env.PORT || 4000;
-
-const browserPromise = puppeteer.launch({
-  args: ['--no-sandbox', '--disable-setuid-sandbox'],
-});
-browserPromise.then(() => {
-  console.log(`Browser launched successfully.`);
-});
 
 const typeDefs = gql`
   type UrlResolveResult {
@@ -32,8 +23,17 @@ const typeDefs = gql`
 const resolvers = {
   Query: {
     resolvedUrls: async (root, { urls }) => {
-      const browser = await browserPromise;
-      return await Promise.all(urls.map(url => scrap(browser, url)));
+      return await Promise.all(
+        urls.map(async url => {
+          const unshortened = await unshorten(url);
+          const scrapResult = await scrap(unshortened);
+
+          return {
+            url,
+            ...scrapResult,
+          };
+        })
+      );
     },
   },
 };
@@ -44,5 +44,6 @@ server
     port: PORT,
   })
   .then(({ url }) => {
+    // eslint-disable-next-line no-console
     console.log(`🚀  Server ready at ${url}`);
   });
