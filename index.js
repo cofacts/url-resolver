@@ -1,4 +1,4 @@
-require('./lib/catchUnhandledRejectione');
+require('./lib/catchUnhandledRejection');
 require('dotenv').config();
 
 const { ApolloServer, gql } = require('apollo-server');
