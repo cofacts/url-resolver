@@ -1,6 +1,6 @@
 # Cofacts URL Resolver
 
-[![Build Status](https://travis-ci.org/cofacts/url-resolver.svg?branch=master)](https://travis-ci.org/cofacts/url-resolver)
+[![Build Status](https://travis-ci.org/cofacts/url-resolver.svg?branch=master)](https://travis-ci.org/cofacts/url-resolver) [![Coverage Status](https://coveralls.io/repos/github/cofacts/url-resolver/badge.svg?branch=master)](https://coveralls.io/github/cofacts/url-resolver?branch=master)
 
 A GraphQL service that scraps the specified URL and returns scrapped result and summary extracted by
 [Readability.js]
