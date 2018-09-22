@@ -2,5 +2,6 @@
 !package.json
 !package-lock.json
 !index.js
+!schema.js
 !lib/*
 !vendor/*
