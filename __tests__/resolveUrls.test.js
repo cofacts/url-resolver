@@ -37,6 +37,25 @@ describe('resolveUrls', () => {
 
     expect(result).toMatchSnapshot();
   });
+
+  it('returns minimal data on error', async () => {
+    const result = await gql`
+      {
+        resolvedUrls(
+          urls: [
+            "http://blog.udn.com/watercmd/1066441" # https://github.com/cofacts/url-resolver/issues/2
+          ]
+        ) {
+          canonical
+          title
+          summary
+          topImageUrl
+        }
+      }
+    `();
+
+    expect(result).toMatchSnapshot();
+  });
 });
 
 afterAll(async () => {
