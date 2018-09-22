@@ -8,7 +8,7 @@
     "build": "docker build -t mrorz/cofacts-url-resolver:latest .",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
-    "test": "npm run lint"
+    "test": "jest"
   },
   "author": "MrOrz",
   "license": "MIT",
@@ -17,7 +17,7 @@
     "dotenv": "^6.0.0",
     "get-video-id": "^3.1.0",
     "googleapis": "^33.0.0",
-    "graphql": "^0.13.2",
+    "graphql": "^14.0.2",
     "node-fetch": "^2.2.0"
   },
   "devDependencies": {
@@ -25,6 +25,7 @@
     "eslint-config-prettier": "^3.0.1",
     "eslint-plugin-import": "^2.14.0",
     "eslint-plugin-prettier": "^2.6.2",
+    "jest": "^23.6.0",
     "prettier": "^1.14.2",
     "puppeteer": "^1.6.2"
   }
