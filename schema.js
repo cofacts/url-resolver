@@ -9,18 +9,64 @@ const unshorten = require('./lib/unshorten');
 const fetchYoutube = require('./lib/fetchYoutube');
 
 const typeDefs = gql`
+  enum ResolveError {
+    # DNS cannot resolve the given URL
+    NAME_NOT_RESOLVED
+
+    UNKNOWN_SCRAP_ERROR
+    UNKNOWN_YOUTUBE_ERROR
+  }
+
   type UrlResolveResult {
+    """
+    The exact URL givne as input
+    """
     url: String
+
+    """
+    Canonical URL extracted from HTML source
+    """
     canonical: String
+
+    """
+    Page title extracted from HTML source
+    """
     title: String
+
+    """
+    Summary of the given page. Generated via API or readability.js
+    """
     summary: String
+
+    """
+    Fetched HTML
+    """
     html: String
+
+    """
+    URL of the detected top image for the page
+    """
     topImageUrl: String
+
+    """
+    HTTP status of fetch result. 0 for timeouts, etc.
+    """
     status: Int
+
+    """
+    Known fatal error during the resolution process. These errors are not related to HTTP, thus
+    cannot be represented as HTTP status codes.
+    """
+    error: ResolveError
   }
 
   type Query {
-    resolvedUrls(urls: [String]!): [UrlResolveResult]
+    resolvedUrls(
+      """
+      URLs to resolve
+      """
+      urls: [String]!
+    ): [UrlResolveResult]
   }
 `;
 

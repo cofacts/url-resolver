@@ -13,6 +13,7 @@ describe('resolveUrls', () => {
           html
           topImageUrl
           status
+          error
         }
       }
     `();
