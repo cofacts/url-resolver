@@ -13,6 +13,9 @@ const typeDefs = gql`
     # DNS cannot resolve the given URL
     NAME_NOT_RESOLVED
 
+    # Malformed URL
+    INVALID_URL
+
     UNKNOWN_SCRAP_ERROR
     UNKNOWN_YOUTUBE_ERROR
   }

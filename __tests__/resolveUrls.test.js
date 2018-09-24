@@ -21,6 +21,21 @@ describe('resolveUrls', () => {
     expect(result).toMatchSnapshot();
   });
 
+  it('returns fetch error properly', async () => {
+    const result = await gql`
+      {
+        resolvedUrls(
+          urls: ["https://this-cannot-be-resolved.com", "no-protocol.com"]
+        ) {
+          url
+          error
+        }
+      }
+    `();
+
+    expect(result).toMatchSnapshot();
+  });
+
   it.skip('resolves alert boxes', async () => {});
 
   it.skip('resolves redirects', async () => {});
@@ -28,10 +43,18 @@ describe('resolveUrls', () => {
   it('handles youtube URL', async () => {
     const result = await gql`
       {
-        resolvedUrls(urls: ["https://www.youtube.com/watch?v=jNQXAC9IVRw"]) {
+        resolvedUrls(
+          urls: [
+            "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+            "https://www.youtube.com/watch?v=not-exist"
+          ]
+        ) {
+          url
           canonical
           title
           summary
+          status
+          error
         }
       }
     `();
@@ -47,10 +70,12 @@ describe('resolveUrls', () => {
             "http://blog.udn.com/watercmd/1066441" # https://github.com/cofacts/url-resolver/issues/2
           ]
         ) {
+          url
           canonical
           title
           summary
           topImageUrl
+          error
         }
       }
     `();

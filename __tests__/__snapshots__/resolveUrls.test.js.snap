@@ -6,8 +6,19 @@ Object {
     "resolvedUrls": Array [
       Object {
         "canonical": "https://youtu.be/jNQXAC9IVRw",
+        "error": null,
+        "status": 200,
         "summary": "The first video on YouTube. Maybe it's time to go back to the zoo? The name of the music playing in the background is Darude - Sandstorm.",
         "title": "Me at the zoo",
+        "url": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+      },
+      Object {
+        "canonical": null,
+        "error": null,
+        "status": 404,
+        "summary": null,
+        "title": null,
+        "url": "https://www.youtube.com/watch?v=not-exist",
       },
     ],
   },
@@ -20,6 +31,7 @@ Object {
     "resolvedUrls": Array [
       Object {
         "canonical": "https://example.com/",
+        "error": null,
         "html": "<!DOCTYPE html><html><head>
     <title>Example Domain</title>
 
@@ -82,15 +94,34 @@ Object {
 }
 `;
 
+exports[`resolveUrls returns fetch error properly 1`] = `
+Object {
+  "data": Object {
+    "resolvedUrls": Array [
+      Object {
+        "error": "NAME_NOT_RESOLVED",
+        "url": "https://this-cannot-be-resolved.com",
+      },
+      Object {
+        "error": "INVALID_URL",
+        "url": "no-protocol.com",
+      },
+    ],
+  },
+}
+`;
+
 exports[`resolveUrls returns minimal data on error 1`] = `
 Object {
   "data": Object {
     "resolvedUrls": Array [
       Object {
         "canonical": "http://blog.udn.com/watercmd/1066441",
+        "error": null,
         "summary": "主題：『吃香腸配養樂多會致癌嗎？』 我也是台客    轉貼: 　　導正『吃香腸配養樂多會致癌嗎？』的錯誤觀念　陳柏瑞 　　硝酸鹽和亞硝酸鹽是廣泛存在於自然環境中的化學物質，特別是在食物中，如蔬菜、 肉...",
         "title": "主題：吃香腸配養樂多會致癌嗎？ - 查無此人 - udn部落格",
         "topImageUrl": "https://g.udn.com.tw/community/img/common_all/blog_ogimg.jpg",
+        "url": "http://blog.udn.com/watercmd/1066441",
       },
     ],
   },
