@@ -95,6 +95,7 @@ describe('resolveUrls', () => {
           urls: [
             "http://blog.udn.com/watercmd/1066441" # https://github.com/cofacts/url-resolver/issues/2
             "http://pension.president.gov.tw/cp.aspx?n=0710ED8C9356A871" # This page overrides URL and causes error when fetching topImageUrl...
+            "http://ms7.tw/DL/D?k=app_daily_coupon" # This page don't have error, but executor() returns nothing
           ]
         ) {
           url
