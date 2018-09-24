@@ -39,6 +39,30 @@ Object {
 }
 `;
 
+exports[`resolveUrls resolves Javascript / html redirects 1`] = `
+Object {
+  "data": Object {
+    "resolvedUrls": Array [
+      Object {
+        "canonical": "https://www.tstartel.com/CWS/allrates-limitedtallk.php",
+        "title": "- 台灣之星TSTAR",
+        "url": "https://www.tstartel.com/static/discount/20161020_rollover/index.htm?utm_source=line&utm_medium=pic&utm_content=line_0504.rollover",
+      },
+      Object {
+        "canonical": "",
+        "title": "宜家卡 - IKEA",
+        "url": "https://ikeabc.ecrm.com.tw/ikeaoa/l/11166",
+      },
+      Object {
+        "canonical": "https://www.gvm.com.tw/article.html?id=42308",
+        "title": "小心，愈來愈多人跟台灣說再見| 遠見雜誌",
+        "url": "https://www.gvm.com.tw/article_content_33230.html",
+      },
+    ],
+  },
+}
+`;
+
 exports[`resolveUrls resolves normal URLs 1`] = `
 Object {
   "data": Object {

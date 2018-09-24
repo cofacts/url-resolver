@@ -44,7 +44,27 @@ describe('resolveUrls', () => {
 
   it.skip('resolves alert boxes', async () => {});
 
-  it.skip('resolves redirects', async () => {});
+  it.skip('resolves 301 redirects', async () => {});
+
+  it('resolves Javascript / html redirects', async () => {
+    const result = await gql`
+      {
+        resolvedUrls(
+          urls: [
+            "https://www.tstartel.com/static/discount/20161020_rollover/index.htm?utm_source=line&utm_medium=pic&utm_content=line_0504.rollover" # uses window.location.href
+            "https://ikeabc.ecrm.com.tw/ikeaoa/l/11166" # uses window.location.replace()
+            "https://www.gvm.com.tw/article_content_33230.html" # uses <meta /> refresh
+          ]
+        ) {
+          url
+          canonical
+          title
+        }
+      }
+    `();
+
+    expect(result).toMatchSnapshot();
+  });
 
   it('handles youtube URL', async () => {
     const result = await gql`
