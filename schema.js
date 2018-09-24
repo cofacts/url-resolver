@@ -24,6 +24,9 @@ const typeDefs = gql`
     # File download, etc
     UNSUPPORTED
 
+    # HTTPS related error, such as invalid certificates
+    HTTPS_ERROR
+
     UNKNOWN_SCRAP_ERROR
     UNKNOWN_YOUTUBE_ERROR
   }

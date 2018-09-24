@@ -156,6 +156,10 @@ Object {
         "error": "UNSUPPORTED",
         "url": "https://www.ey.gov.tw/File/66E9E54960EB958B?A=C",
       },
+      Object {
+        "error": "HTTPS_ERROR",
+        "url": "https://organizejobs.net/en/support.php",
+      },
     ],
   },
 }

@@ -31,6 +31,7 @@ describe('resolveUrls', () => {
             "https://identityredesign.tw/vote-list.html" # has domain, but don't respond
             "http://beingsweetlife.com/archives/04/220087" # socket hang up without response (ERR_EMPTY_RESPONSE)
             "https://www.ey.gov.tw/File/66E9E54960EB958B?A=C" # PDF file, which is not supported
+            "https://organizejobs.net/en/support.php" # Cert error
           ]
         ) {
           url
