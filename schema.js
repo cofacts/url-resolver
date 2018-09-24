@@ -6,6 +6,7 @@ const getVideoId = require('get-video-id');
 
 const scrap = require('./lib/scrap');
 const unshorten = require('./lib/unshorten');
+const normalize = require('./lib/normalize');
 const fetchYoutube = require('./lib/fetchYoutube');
 
 const typeDefs = gql`
@@ -78,7 +79,8 @@ const resolvers = {
     resolvedUrls: async (root, { urls }) => {
       return await Promise.all(
         urls.map(async url => {
-          const unshortened = await unshorten(url);
+          const normalized = normalize(url);
+          const unshortened = await unshorten(normalized);
           const { id: videoId, service } = getVideoId(unshortened);
 
           let fetcher;

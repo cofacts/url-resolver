@@ -1,5 +1,19 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`resolveUrls handles URLs without protocol 1`] = `
+Object {
+  "data": Object {
+    "resolvedUrls": Array [
+      Object {
+        "canonical": "http://example.com/",
+        "title": "Example Domain",
+        "url": "example.com",
+      },
+    ],
+  },
+}
+`;
+
 exports[`resolveUrls handles youtube URL 1`] = `
 Object {
   "data": Object {

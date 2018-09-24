@@ -82,6 +82,22 @@ describe('resolveUrls', () => {
 
     expect(result).toMatchSnapshot();
   });
+
+  it('handles URLs without protocol', async () => {
+    const result = await gql`
+      {
+        resolvedUrls(urls: ["example.com"]) {
+          url
+          canonical
+          title
+        }
+      }
+    `();
+
+    // Note that url should be same as input.
+    //
+    expect(result).toMatchSnapshot();
+  });
 });
 
 afterAll(async () => {
