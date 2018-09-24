@@ -174,7 +174,7 @@ Object {
         "url": "http://blog.udn.com/watercmd/1066441",
       },
       Object {
-        "canonical": "http://pension.president.gov.tw/cp.aspx?n=0710ED8C9356A871",
+        "canonical": "https://pension.president.gov.tw/cp.aspx?n=0710ED8C9356A871",
         "error": null,
         "summary": "網路流傳
 			
@@ -204,7 +204,7 @@ Object {
 			以上說明，自95年以來實施的歷次優惠存款調整方案，都一體適用於政務人員。這些因制度過渡期產生的人數不多，所占比率也小，不可能有如網路流傳文章所稱「公保年金被政務人員大把搬光，要求其他小公務員縮衣節食」的情事；更不應該成為年金制度不需改革的藉口。",
         "title": "輿情澄清4：政務人員退職金吃垮公保年金嗎?",
         "topImageUrl": "",
-        "url": "http://pension.president.gov.tw/cp.aspx?n=0710ED8C9356A871",
+        "url": "https://pension.president.gov.tw/cp.aspx?n=0710ED8C9356A871",
       },
       Object {
         "canonical": "https://www.fun123.com.tw/site/promote/download_app",
@@ -213,6 +213,14 @@ Object {
         "title": "3C市集 | 流行3C周邊商品 限時特價",
         "topImageUrl": "https://www.fun123.com.tw/images/desktop/downloadapp/fun123_downloadapp_banner.jpg",
         "url": "http://ms7.tw/DL/D?k=app_daily_coupon",
+      },
+      Object {
+        "canonical": null,
+        "error": "NOT_REACHABLE",
+        "summary": null,
+        "title": null,
+        "topImageUrl": null,
+        "url": "https://99md.cn/fslh",
       },
     ],
   },
