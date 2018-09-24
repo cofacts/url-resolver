@@ -25,7 +25,11 @@ describe('resolveUrls', () => {
     const result = await gql`
       {
         resolvedUrls(
-          urls: ["https://this-cannot-be-resolved.com", "no-protocol.com"]
+          urls: [
+            "https://this-cannot-be-resolved.com"
+            "line://ch/1341209850"
+            "https://identityredesign.tw/vote-list.html" # has domain, but don't respond
+          ]
         ) {
           url
           error

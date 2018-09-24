@@ -117,8 +117,12 @@ Object {
         "url": "https://this-cannot-be-resolved.com",
       },
       Object {
-        "error": "INVALID_URL",
-        "url": "no-protocol.com",
+        "error": "UNKNOWN_SCRAP_ERROR",
+        "url": "line://ch/1341209850",
+      },
+      Object {
+        "error": "NOT_REACHABLE",
+        "url": "https://identityredesign.tw/vote-list.html",
       },
     ],
   },
