@@ -124,6 +124,14 @@ Object {
         "error": "NOT_REACHABLE",
         "url": "https://identityredesign.tw/vote-list.html",
       },
+      Object {
+        "error": "NOT_REACHABLE",
+        "url": "http://beingsweetlife.com/archives/04/220087",
+      },
+      Object {
+        "error": "UNSUPPORTED",
+        "url": "https://www.ey.gov.tw/File/66E9E54960EB958B?A=C",
+      },
     ],
   },
 }

@@ -21,6 +21,9 @@ const typeDefs = gql`
     # The target URL cannot be reached at all
     NOT_REACHABLE
 
+    # File download, etc
+    UNSUPPORTED
+
     UNKNOWN_SCRAP_ERROR
     UNKNOWN_YOUTUBE_ERROR
   }

@@ -29,6 +29,8 @@ describe('resolveUrls', () => {
             "https://this-cannot-be-resolved.com"
             "line://ch/1341209850"
             "https://identityredesign.tw/vote-list.html" # has domain, but don't respond
+            "http://beingsweetlife.com/archives/04/220087" # socket hang up without response (ERR_EMPTY_RESPONSE)
+            "https://www.ey.gov.tw/File/66E9E54960EB958B?A=C" # PDF file, which is not supported
           ]
         ) {
           url
