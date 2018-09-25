@@ -41,4 +41,4 @@ async function resolvedUrls(root, { urls }) {
   );
 }
 
-module.exports = resolvedUrls;
+module.exports = { Query: { resolvedUrls } };

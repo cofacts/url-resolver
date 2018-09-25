@@ -207,8 +207,4 @@ async function scrap(url) {
 
 module.exports = scrap;
 
-// Exported for unit test to teardown
-scrap.closeBrowser = async function closeBrowser() {
-  const browser = await browserPromise;
-  await browser.close();
-};
+scrap.getBrowserPromise = () => browserPromise;

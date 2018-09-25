@@ -1,0 +1,35 @@
+"""
+Ref: https://github.com/GoogleChrome/puppeteer/blob/v1.8.0/docs/api.md#pagemetrics
+"""
+type BrowserPageMetrics {
+  Timestamp: Float
+  Documents: Int
+  Frames: Int
+  JSEventListeners: Int
+  Nodes: Int
+  JSHeapUsedSize: Int
+  JSHeapTotalSize: Int
+}
+
+type BrowserPage {
+  title: String
+  url: String
+  metrics: BrowserPageMetrics
+}
+
+type BrowserStats {
+  """
+  Browser version currently connected to cofacts-url-resolver
+  """
+  version: String
+
+  """
+  Currently opened pages of the browser
+  """
+  pages: [BrowserPage]
+
+  """
+  Number of currently opened pages of the browser
+  """
+  pageCount: Int
+}
