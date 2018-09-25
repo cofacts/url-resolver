@@ -95,24 +95,32 @@ async function scrap(url) {
   }
   const msSpent = Date.now() - startTime;
 
-  const html = await page.content();
+  let html;
+  let canonical;
+  try {
+    html = await page.content();
 
-  // eslint-disable-next-line no-console
-  console.info(`[GET] ${url} - ${html.length} - ${msSpent}ms`);
+    // eslint-disable-next-line no-console
+    console.info(`[GET] ${url} - ${html.length} - ${msSpent}ms`);
 
-  // Don't instrument page.evaluate callbacks, or instrumented vars cov_xxxx will cause error!
-  /* istanbul ignore next */
-  const canonical = await page.evaluate(() => {
-    const canonicalLink = document.querySelector('link[rel=canonical]');
-    if (canonicalLink) return canonicalLink.href;
+    // Don't instrument page.evaluate callbacks, or instrumented vars cov_xxxx will cause error!
+    /* istanbul ignore next */
+    canonical = await page.evaluate(() => {
+      const canonicalLink = document.querySelector('link[rel=canonical]');
+      if (canonicalLink) return canonicalLink.href;
 
-    const ogType = document.querySelector('meta[property="og:type"]');
-    const isVideo = ogType && ogType.content.startsWith('video');
-    const ogUrlMeta = document.querySelector('meta[property="og:url"]');
-    if (!isVideo && ogUrlMeta) return ogUrlMeta.content;
+      const ogType = document.querySelector('meta[property="og:type"]');
+      const isVideo = ogType && ogType.content.startsWith('video');
+      const ogUrlMeta = document.querySelector('meta[property="og:url"]');
+      if (!isVideo && ogUrlMeta) return ogUrlMeta.content;
 
-    return window.location.href;
-  });
+      return window.location.href;
+    });
+  } catch (e) {
+    // Maybe context destroyed error (caused by JS / HTML redirects)
+    await page.close();
+    throw new ResolveError('UNKNOWN_SCRAP_ERROR', e);
+  }
 
   // For URLs that cannot navigate properly
   if (canonical === 'about:blank') {
