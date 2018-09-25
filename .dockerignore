@@ -3,5 +3,5 @@
 !package-lock.json
 !index.js
 !schema.js
-!lib/*
-!vendor/*
+!src/*
+!docker-test.sh

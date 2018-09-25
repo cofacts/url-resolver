@@ -1,4 +1,4 @@
-const schema = require('./schema');
+const schema = require('./src/schema');
 const { ApolloServer } = require('apollo-server');
 const PORT = process.env.PORT || 4000;
 

@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "build": "docker build -t mrorz/cofacts-url-resolver:latest .",
-    "lint": "eslint .",
+    "lint": "eslint src/ tests/",
     "lint:fix": "eslint --fix .",
     "test": "jest"
   },
@@ -24,13 +24,16 @@
     "coveralls": "^3.0.2",
     "eslint": "^5.4.0",
     "eslint-config-prettier": "^3.0.1",
-    "eslint-plugin-import": "^2.14.0",
+    "eslint-plugin-node": "^7.0.1",
     "eslint-plugin-prettier": "^2.6.2",
     "jest": "^23.6.0",
     "prettier": "^1.14.2",
     "puppeteer": "=1.8.0"
   },
+  "engines": {
+    "node": ">=10.0.0"
+  },
   "jest": {
-    "setupTestFrameworkScriptFile": "./test-setup.js"
+    "setupTestFrameworkScriptFile": "./tests/setup.js"
   }
 }

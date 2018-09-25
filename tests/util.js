@@ -1,5 +1,5 @@
 const { graphql } = require('graphql');
-const schema = require('./schema');
+const schema = require('../src/schema');
 
 /**
  * Executes graphql query against the current GraphQL schema.

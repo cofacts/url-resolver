@@ -1,5 +1,5 @@
-const { gql } = require('../test-util');
-const { closeBrowser } = require('../lib/scrap');
+const { gql } = require('../../../tests/util');
+const { closeBrowser } = require('../../lib/scrap');
 
 describe('resolveUrls', () => {
   it('resolves normal URLs', async () => {

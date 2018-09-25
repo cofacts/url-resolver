@@ -72,13 +72,16 @@ async function scrap(url) {
         break; // Timeout is not a big deal, keep processing
 
       case errorStr.startsWith('Error: Protocol error'):
+        await page.close();
         throw new ResolveError('INVALID_URL', e);
 
       case errorStr.startsWith('Error: net::ERR_NAME_NOT_RESOLVED'):
+        await page.close();
         throw new ResolveError('NAME_NOT_RESOLVED', e);
 
       case errorStr.startsWith('Error: net::ERR_ABORTED'):
         // See: https://github.com/GoogleChrome/puppeteer/issues/2794#issuecomment-400512765
+        await page.close();
         throw new ResolveError('UNSUPPORTED', e);
 
       default:
@@ -86,6 +89,7 @@ async function scrap(url) {
         console.error(`[scrap][goto] ${url} - ${e}`);
 
         // unkown error, directly return
+        await page.close();
         throw new ResolveError('UNKNOWN_SCRAP_ERROR', e);
     }
   }
@@ -112,6 +116,7 @@ async function scrap(url) {
 
   // For URLs that cannot navigate properly
   if (canonical === 'about:blank') {
+    await page.close();
     throw new ResolveError(
       'UNSUPPORTED',
       new Error(`Cannot navigate to ${url}`)
@@ -182,12 +187,12 @@ async function scrap(url) {
     }
   }
 
+  await page.close();
+
   // If we still cannot get resultArticle, throw
   if (!resultArticle) {
     throw new ResolveError('UNKNOWN_SCRAP_ERROR');
   }
-
-  await page.close();
 
   return {
     url,
