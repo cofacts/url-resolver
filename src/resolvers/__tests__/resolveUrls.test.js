@@ -32,6 +32,7 @@ describe('resolveUrls', () => {
             "http://beingsweetlife.com/archives/04/220087" # socket hang up without response (ERR_EMPTY_RESPONSE)
             "https://www.ey.gov.tw/File/66E9E54960EB958B?A=C" # PDF file, which is not supported
             "https://organizejobs.net/en/support.php" # Cert error
+            "https://99md.cn/fslh" # Refuses bot connection (connect ECONNREFUSED)
           ]
         ) {
           url
@@ -97,7 +98,7 @@ describe('resolveUrls', () => {
             "http://blog.udn.com/watercmd/1066441" # https://github.com/cofacts/url-resolver/issues/2
             "https://pension.president.gov.tw/cp.aspx?n=0710ED8C9356A871" # This page overrides URL and causes error when fetching topImageUrl...
             "http://ms7.tw/DL/D?k=app_daily_coupon" # This page don't have error, but executor() returns nothing
-            "https://99md.cn/fslh" # Refuses bot connection (connect ECONNREFUSED)
+            "http://blog.renren.com/share/300233063/14628038408" # https://github.com/cofacts/url-resolver/issues/4
           ]
         ) {
           url
