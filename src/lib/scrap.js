@@ -10,6 +10,7 @@ const PROCESSING_TIMEOUT = 1000;
 
 const browserPromise = puppeteer.launch({
   args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  // devtools: true,
 });
 browserPromise.then(() => {
   // eslint-disable-next-line no-console
@@ -32,6 +33,24 @@ function executor() {
 }
 
 /**
+ * Stops page navigation; equal to pressing "stop" button in browser.
+ * We put this to prevent other evaluation throws "context was destroyed, most likely because of a navigation"
+ *
+ * @param {Page} page
+ */
+async function stop(page) {
+  try {
+    /* istanbul ignore next */
+    await page.evaluate(() => {
+      window.stop();
+    });
+  } catch (e) {
+    // Probably "Execution context was destroyed, most likely because of a navigation"
+    // but window.stop() will still do its job. Don't throw here.
+  }
+}
+
+/**
  * Return type for scrapUrls
  * @typedef {Object} ScrapResult
  * @property {string} url The original URL from text
@@ -51,21 +70,23 @@ function executor() {
  */
 async function scrap(url) {
   const browser = await browserPromise;
-  const fetchingPage = await browser.newPage();
+  const page = await browser.newPage();
 
   // Automaticaly accept all alert() or confirm()
-  fetchingPage.on('dialog', async dialog => {
+  page.on('dialog', async dialog => {
     // eslint-disable-next-line no-console
     console.info(`[Dialog(${dialog.type()})]`, dialog.message());
     await dialog.accept();
   });
 
-  fetchingPage.setDefaultNavigationTimeout(FETCHING_TIMEOUT);
   let response;
 
   const startTime = Date.now();
   try {
-    response = await fetchingPage.goto(url, { waitUntil: 'networkidle0' });
+    response = await page.goto(url, {
+      waitUntil: 'networkidle0',
+      timeout: FETCHING_TIMEOUT,
+    });
   } catch (e) {
     const errorStr = e.toString();
 
@@ -74,16 +95,16 @@ async function scrap(url) {
         break; // Timeout is not a big deal, keep processing
 
       case errorStr.startsWith('Error: Protocol error'):
-        await fetchingPage.close();
+        await page.close();
         throw new ResolveError('INVALID_URL', e);
 
       case errorStr.startsWith('Error: net::ERR_NAME_NOT_RESOLVED'):
-        await fetchingPage.close();
+        await page.close();
         throw new ResolveError('NAME_NOT_RESOLVED', e);
 
       case errorStr.startsWith('Error: net::ERR_ABORTED'):
         // See: https://github.com/GoogleChrome/puppeteer/issues/2794#issuecomment-400512765
-        await fetchingPage.close();
+        await page.close();
         throw new ResolveError('UNSUPPORTED', e);
 
       default:
@@ -91,23 +112,70 @@ async function scrap(url) {
         console.error(`[scrap][goto] ${url} - ${e}`);
 
         // unkown error, directly return
-        await fetchingPage.close();
+        await page.close();
         throw new ResolveError('UNKNOWN_SCRAP_ERROR', e);
     }
   }
+
   const msSpent = Date.now() - startTime;
 
   let html;
+
+  await stop(page);
+
+  try {
+    html = await page.content();
+  } catch (e) {
+    // Maybe context destroyed error (caused by JS / HTML redirects)
+    await page.close();
+    throw new ResolveError('UNKNOWN_SCRAP_ERROR', e);
+  }
+
+  // eslint-disable-next-line no-console
+  console.info(`[GET] ${url} - ${html.length} - ${msSpent}ms`);
+
+  // Reload the page with Javascript disabled to provide a clear JS environment under the current
+  // location, so that readability.js can be run under a polyfill-free environment.
+  //
+  // Ref: https://github.com/cofacts/url-resolver/issues/4
+  //
+  await page.setJavaScriptEnabled(false);
+  try {
+    await page.reload({
+      waitUntil: 'networkidle0',
+      timeout: PROCESSING_TIMEOUT,
+    });
+  } catch (e) {
+    if (!(e instanceof TimeoutError)) {
+      await page.close();
+      throw new ResolveError('UNKNOWN_SCRAP_ERROR', e);
+    }
+  }
+
+  await stop(page);
+
+  // Set content to the HTML that was loaded by JS before
+  //
+  try {
+    await page.setContent(html);
+    await page.waitForNavigation({
+      waitUntil: 'networkidle2',
+      timeout: PROCESSING_TIMEOUT,
+    });
+  } catch (e) {
+    if (!(e instanceof TimeoutError)) {
+      await page.close();
+      throw new ResolveError('UNKNOWN_SCRAP_ERROR', e);
+    }
+  }
+
+  await stop(page);
+
   let canonical;
   try {
-    html = await fetchingPage.content();
-
-    // eslint-disable-next-line no-console
-    console.info(`[GET] ${url} - ${html.length} - ${msSpent}ms`);
-
     // Don't instrument page.evaluate callbacks, or instrumented vars cov_xxxx will cause error!
     /* istanbul ignore next */
-    canonical = await fetchingPage.evaluate(() => {
+    canonical = await page.evaluate(() => {
       const canonicalLink = document.querySelector('link[rel=canonical]');
       if (canonicalLink) return canonicalLink.href;
 
@@ -120,23 +188,24 @@ async function scrap(url) {
     });
   } catch (e) {
     // Maybe context destroyed error (caused by JS / HTML redirects)
-    await fetchingPage.close();
+    await page.close();
     throw new ResolveError('UNKNOWN_SCRAP_ERROR', e);
   }
 
   // For URLs that cannot navigate properly
   if (canonical === 'about:blank') {
-    await fetchingPage.close();
+    await page.close();
     throw new ResolveError(
       'UNSUPPORTED',
       new Error(`Cannot navigate to ${url}`)
     );
   }
+
   let topImageUrl = '';
   try {
     // Don't instrument page.evaluate callbacks, or instrumented vars cov_xxxx will cause error!
     /* istanbul ignore next */
-    topImageUrl = await fetchingPage.evaluate(() => {
+    topImageUrl = await page.evaluate(() => {
       const ogImageMeta = document.querySelector(
         'meta[property="og:image"], meta[property="og:image:url"]'
       );
@@ -162,33 +231,11 @@ async function scrap(url) {
     console.error(`[scrap][topImageUrl] ${url} - ${e}`);
   }
 
-  await fetchingPage.close();
-
-  // Restart a fresh page with the same URL but no Javascript enabled,
-  // so that readability.js can be run under a polyfill-free environment.
-  //
-  // Ref: https://github.com/cofacts/url-resolver/issues/4
-  //
-
-  const processingPage = await browser.newPage();
-  await processingPage.setDefaultNavigationTimeout(PROCESSING_TIMEOUT);
-  await processingPage.setJavaScriptEnabled(false);
-
-  try {
-    await processingPage.setContent(html);
-    await processingPage.waitForNavigation({ waitUntil: 'networkidle2' });
-  } catch (e) {
-    if (!(e instanceof TimeoutError)) {
-      await processingPage.close();
-      throw new ResolveError('UNKNOWN_SCRAP_ERROR', e);
-    }
-  }
-
   // Returns article object by readibility.parse()
   // https://github.com/mozilla/readability#usage
   let resultArticle;
   try {
-    resultArticle = await processingPage.evaluate(`
+    resultArticle = await page.evaluate(`
       (function(){
         ${readabilityJsStr}
         ${executor}
@@ -205,7 +252,7 @@ async function scrap(url) {
     try {
       // Returns simple rule data if readability.js fails
       /* istanbul ignore next */
-      resultArticle = await processingPage.evaluate(() => {
+      resultArticle = await page.evaluate(() => {
         const meta = document.querySelector('meta[name=description]');
         return {
           title: document.title,
@@ -218,7 +265,7 @@ async function scrap(url) {
     }
   }
 
-  await processingPage.close();
+  await page.close();
 
   // If we still cannot get resultArticle, throw
   if (!resultArticle) {

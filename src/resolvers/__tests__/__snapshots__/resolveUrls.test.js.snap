@@ -49,8 +49,8 @@ Object {
         "url": "https://www.tstartel.com/static/discount/20161020_rollover/index.htm?utm_source=line&utm_medium=pic&utm_content=line_0504.rollover",
       },
       Object {
-        "canonical": null,
-        "title": null,
+        "canonical": "",
+        "title": "宜家卡 - IKEA",
         "url": "https://ikeabc.ecrm.com.tw/ikeaoa/l/11166",
       },
       Object {
@@ -211,7 +211,7 @@ Object {
 
 			以上說明，自95年以來實施的歷次優惠存款調整方案，都一體適用於政務人員。這些因制度過渡期產生的人數不多，所占比率也小，不可能有如網路流傳文章所稱「公保年金被政務人員大把搬光，要求其他小公務員縮衣節食」的情事；更不應該成為年金制度不需改革的藉口。",
         "title": "輿情澄清4：政務人員退職金吃垮公保年金嗎?",
-        "topImageUrl": "",
+        "topImageUrl": "https://pension.president.gov.tw/images/share.png",
         "url": "https://pension.president.gov.tw/cp.aspx?n=0710ED8C9356A871",
       },
       Object {
