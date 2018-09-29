@@ -50,7 +50,7 @@ Object {
       },
       Object {
         "canonical": "",
-        "title": "宜家卡 - IKEA",
+        "title": "禮遇孕媽咪 登錄享專屬驚喜好禮｜IKEA－宜家卡",
         "url": "https://ikeabc.ecrm.com.tw/ikeaoa/l/11166",
       },
       Object {
@@ -182,7 +182,7 @@ Object {
         "url": "http://blog.udn.com/watercmd/1066441",
       },
       Object {
-        "canonical": "https://pension.president.gov.tw/cp.aspx?n=0710ED8C9356A871",
+        "canonical": "http://pension.president.gov.tw/cp.aspx?n=0710ED8C9356A871",
         "error": null,
         "summary": "網路流傳
 			
@@ -215,11 +215,11 @@ Object {
         "url": "https://pension.president.gov.tw/cp.aspx?n=0710ED8C9356A871",
       },
       Object {
-        "canonical": "https://www.fun123.com.tw/site/promote/download_app",
+        "canonical": "https://www.fun123.com.tw/site/promote/download_app?utm_source=app_daily_coupon&utm_medium=short&utm_campaign=download_app",
         "error": null,
         "summary": "流行3C周邊商品 限時特價",
         "title": "3C市集 | 流行3C周邊商品 限時特價",
-        "topImageUrl": "https://www.fun123.com.tw/images/desktop/downloadapp/fun123_downloadapp_banner.jpg",
+        "topImageUrl": "",
         "url": "http://ms7.tw/DL/D?k=app_daily_coupon",
       },
       Object {
