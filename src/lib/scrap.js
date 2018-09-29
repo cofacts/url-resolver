@@ -12,9 +12,25 @@ const browserPromise = puppeteer.launch({
   args: ['--no-sandbox', '--disable-setuid-sandbox'],
   // devtools: true,
 });
-browserPromise.then(() => {
+browserPromise.then(browser => {
   // eslint-disable-next-line no-console
   console.log(`Browser launched successfully.`);
+
+  // Some page may use window.open() to open extra pages.
+  // We should close them when such page is detected.
+  //
+  browser.on('targetcreated', async target => {
+    const opener = target.opener();
+    if (opener) {
+      // eslint-disable-next-line no-console
+      console.info(
+        `[targetcreated] Extra page "${target.url()}" opened by "${opener.url()}". Closing.`
+      );
+
+      const page = await target.page();
+      if (page) page.close();
+    }
+  });
 });
 
 const readabilityJsStr = fs.readFileSync(
