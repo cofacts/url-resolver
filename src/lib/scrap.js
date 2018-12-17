@@ -9,30 +9,51 @@ const rollbar = require('./rollbar');
 const FETCHING_TIMEOUT = 5000;
 const PROCESSING_TIMEOUT = 1000;
 
-const browserPromise = puppeteer.launch({
-  args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  // devtools: true,
-});
-browserPromise.then(browser => {
-  // eslint-disable-next-line no-console
-  console.log(`Browser launched successfully.`);
+let browserPromise;
+let isBrowserClosing = false;
 
-  // Some page may use window.open() to open extra pages.
-  // We should close them when such page is detected.
-  //
-  browser.on('targetcreated', async target => {
-    const opener = target.opener();
-    if (opener) {
-      // eslint-disable-next-line no-console
-      console.info(
-        `[targetcreated] Extra page "${target.url()}" opened by "${opener.url()}". Closing.`
-      );
-
-      const page = await target.page();
-      if (page) page.close();
-    }
+/**
+ * Launch Google Chrome and sets browserPromise
+ */
+function launchBrowser() {
+  browserPromise = puppeteer.launch({
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    // devtools: true,
   });
-});
+  browserPromise.then(browser => {
+    // eslint-disable-next-line no-console
+    console.log(`Browser launched successfully.`);
+
+    // Some page may use window.open() to open extra pages.
+    // We should close them when such page is detected.
+    //
+    browser.on('targetcreated', async target => {
+      const opener = target.opener();
+      if (opener) {
+        // eslint-disable-next-line no-console
+        console.info(
+          `[targetcreated] Extra page "${target.url()}" opened by "${opener.url()}". Closing.`
+        );
+
+        const page = await target.page();
+        if (page) page.close();
+      }
+    });
+
+    // Google Chrome sometimes crashes, needs re-launch
+    // https://github.com/cofacts/url-resolver/issues/9
+    //
+    browser.on('disconnected', () => {
+      // Ignore the case when close() is invoked
+      if (isBrowserClosing) return;
+
+      rollbar.warn('Puppeteer disconnected from Chrome');
+      launchBrowser();
+    });
+  });
+}
+
+launchBrowser();
 
 const readabilityJsStr = fs.readFileSync(
   path.join(__dirname, '../vendor/Readability.js'),
@@ -299,3 +320,13 @@ async function scrap(url) {
 module.exports = scrap;
 
 scrap.getBrowserPromise = () => browserPromise;
+
+/**
+ * Closing browser. After closing, the url-resolver can never be used again.
+ * Should only use after unit tests.
+ */
+scrap.closeBrowser = async () => {
+  isBrowserClosing = true;
+  const browser = await browserPromise;
+  browser.close();
+};

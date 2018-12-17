@@ -1,5 +1,5 @@
 const { gql } = require('../../../tests/util');
-const { getBrowserPromise } = require('../../lib/scrap');
+const { closeBrowser } = require('../../lib/scrap');
 
 describe('resolveUrls', () => {
   it('resolves normal URLs', async () => {
@@ -132,8 +132,7 @@ describe('resolveUrls', () => {
 });
 
 afterAll(async () => {
-  const browser = await getBrowserPromise();
-  await browser.close();
+  await closeBrowser();
 
   // eslint-disable-next-line no-console
   console.log('browser closed.');
