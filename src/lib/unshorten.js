@@ -1,6 +1,5 @@
 const fetch = require('node-fetch');
 const ResolveError = require('./ResolveError');
-const rollbar = require('./rollbar');
 
 const TIMEOUT = 2000; // ms
 
@@ -32,7 +31,8 @@ async function unshorten(url) {
         throw new ResolveError('HTTPS_ERROR', e);
 
       default:
-        rollbar.error(e, '[unshorten] Error', { url });
+        // eslint-disable-next-line no-console
+        console.error('[unshorten]', url, e);
         return url;
     }
   }

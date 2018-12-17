@@ -1,5 +1,4 @@
 const getVideoId = require('get-video-id');
-const rollbar = require('../lib/rollbar');
 
 const scrap = require('../lib/scrap');
 const unshorten = require('../lib/unshorten');
@@ -28,7 +27,8 @@ async function resolvedUrls(root, { urls }) {
           url,
         };
       } catch (e) {
-        rollbar.error(e, '[resolvedUrls] error', { url });
+        // eslint-disable-next-line no-console
+        console.error('[resolvedUrls]', url, e);
 
         if (e instanceof ResolveError) {
           return {
