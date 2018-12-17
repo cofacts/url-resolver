@@ -1,5 +1,6 @@
 const { google } = require('googleapis');
 const ResolveError = require('./ResolveError');
+const rollbar = require('../lib/rollbar');
 
 const yt = google.youtube({
   version: 'v3',
@@ -45,10 +46,7 @@ async function fetchYoutube(id) {
       status: 200,
     };
   } catch (e) {
-    console.error('[fetchYoutube] Youtube data extract error', e); // eslint-disable-line no-console
-    console.error('[fetchYoutube] Original data', data); // eslint-disable-line no-console
-    console.error('[fetchYoutube] ID', id); // eslint-disable-line no-console
-
+    rollbar.error(e, '[fetchYoutube] Youtube data extract error', { data, id });
     throw ResolveError('UNKNOWN_YOUTUBE_ERROR', e);
   }
 }

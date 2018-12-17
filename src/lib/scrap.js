@@ -4,6 +4,7 @@ const fs = require('fs');
 const puppeteer = require('puppeteer');
 const { TimeoutError } = require('puppeteer/Errors');
 const ResolveError = require('./ResolveError');
+const rollbar = require('./rollbar');
 
 const FETCHING_TIMEOUT = 5000;
 const PROCESSING_TIMEOUT = 1000;
@@ -124,8 +125,7 @@ async function scrap(url) {
         throw new ResolveError('UNSUPPORTED', e);
 
       default:
-        // eslint-disable-next-line no-console
-        console.error(`[scrap][goto] ${url} - ${e}`);
+        rollbar.error(e, '[scrap] page.goto() Error', { url });
 
         // unkown error, directly return
         await page.close();
@@ -243,8 +243,7 @@ async function scrap(url) {
   } catch (e) {
     // Cannot get top image URL is not a big deal, just log error
 
-    // eslint-disable-next-line no-console
-    console.error(`[scrap][topImageUrl] ${url} - ${e}`);
+    rollbar.error(e, '[scrap] topImageUrl error', { url });
   }
 
   // Returns article object by readibility.parse()
@@ -259,8 +258,7 @@ async function scrap(url) {
       }())
     `);
   } catch (e) {
-    // eslint-disable-next-line no-console
-    console.error(`[scrap][executor] ${url} - ${e}`);
+    rollbar.error(e, '[scrap] executor error', { url });
   }
 
   // Try a second time, using simpler approach
@@ -276,8 +274,7 @@ async function scrap(url) {
         };
       });
     } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error(`[scrap][executor-fallback] ${url} - ${e}`);
+      rollbar.error(e, '[scrap] executor-fallback', { url });
     }
   }
 
