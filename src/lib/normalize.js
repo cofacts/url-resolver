@@ -10,11 +10,11 @@ function normalize(url) {
     normalized = `http://${normalized}`;
   }
 
-  // Facebook --> mobile facebook or better webpage loading performance
-  normalized = normalized.replace(
-    /^https?:\/\/www.facebook.com/i,
-    'https://m.facebook.com'
-  );
+  normalized = normalized
+    // Facebook --> mobile facebook or better webpage loading performance
+    .replace(/^https?:\/\/www.facebook.com/i, 'https://m.facebook.com')
+    // Remove facebook click id
+    .replace(/fbclid=[^&]*&?/, '');
 
   return normalized;
 }
