@@ -158,7 +158,10 @@ async function scrap(url) {
     if (contentType && !contentType.toLowerCase().startsWith('text/html')) {
       // Fixes: https://rollbar.com/mrorz/url-resolver/items/16/
       await page.close();
-      throw new ResolveError('UNSUPPORTED', { url });
+      throw new ResolveError(
+        'UNSUPPORTED',
+        new Error(`Unsupported content type: ${contentType}`)
+      );
     }
   }
 
