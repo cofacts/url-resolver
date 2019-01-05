@@ -3,13 +3,20 @@
  * @returns {string} Normalized url with protocol, etc
  */
 function normalize(url) {
-  // Return if contains protocol
-  if (url.match(/^[^:]+:\/\//)) {
-    return url;
+  let normalized = url;
+
+  // Protocol normalization
+  if (!normalized.match(/^[^:]+:\/\//)) {
+    normalized = `http://${normalized}`;
   }
 
-  // Prefix with http:// if protocol is missing
-  return `http://${url}`;
+  // Facebook --> mobile facebook or better webpage loading performance
+  normalized = normalized.replace(
+    /^https?:\/\/www.facebook.com/i,
+    'https://m.facebook.com'
+  );
+
+  return normalized;
 }
 
 module.exports = normalize;
