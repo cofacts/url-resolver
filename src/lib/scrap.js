@@ -153,6 +153,14 @@ async function scrap(url) {
         throw new ResolveError('UNKNOWN_SCRAP_ERROR', e);
     }
   }
+  if (response) {
+    const contentType = response.headers()['content-type'];
+    if (contentType && !contentType.toLowerCase().startsWith('text/html')) {
+      // Fixes: https://rollbar.com/mrorz/url-resolver/items/16/
+      await page.close();
+      throw new ResolveError('UNSUPPORTED', { url });
+    }
+  }
 
   const msSpent = Date.now() - startTime;
 
