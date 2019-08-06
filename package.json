@@ -19,7 +19,9 @@
     "googleapis": "^36.0.0",
     "graphql": "^14.0.2",
     "node-fetch": "^2.2.0",
-    "rollbar": "^2.5.1"
+    "rollbar": "^2.5.1",
+    "@grpc/proto-loader": "^0.1.0",
+    "grpc": "^1.11.0"
   },
   "devDependencies": {
     "coveralls": "^3.0.2",

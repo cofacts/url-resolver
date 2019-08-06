@@ -6,8 +6,9 @@ const normalize = require('../lib/normalize');
 const fetchYoutube = require('../lib/fetchYoutube');
 const ResolveError = require('../lib/ResolveError');
 
-async function resolvedUrls(root, { urls }) {
-  return await Promise.all(
+async function resolvedUrls(call) {
+  const { urls } = call.request;
+  Promise.all(
     urls.map(async url => {
       try {
         const normalized = normalize(url);
@@ -22,23 +23,24 @@ async function resolvedUrls(root, { urls }) {
         }
 
         const fetchResult = await fetcher;
-        return {
+        call.write({
           ...fetchResult,
           url,
-        };
+        });
       } catch (e) {
         // eslint-disable-next-line no-console
         console.error('[resolvedUrls]', url, e);
-
+        let errMsg;
         if (e instanceof ResolveError) {
-          return {
-            error: e.returnedError,
-            url,
-          };
+          errMsg = e.returnedError;
         }
+        call.write({
+          url,
+          error: errMsg,
+        });
       }
     })
-  );
+  ).then(() => call.end());
 }
 
-module.exports = { Query: { resolvedUrls } };
+module.exports = { resolvedUrls };
