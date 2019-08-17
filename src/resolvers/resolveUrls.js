@@ -6,7 +6,7 @@ const normalize = require('../lib/normalize');
 const fetchYoutube = require('../lib/fetchYoutube');
 const ResolveError = require('../lib/ResolveError');
 
-async function resolvedUrls(call) {
+async function resolveUrls(call) {
   const { urls } = call.request;
   Promise.all(
     urls.map(async url => {
@@ -45,4 +45,4 @@ async function resolvedUrls(call) {
   ).then(() => call.end());
 }
 
-module.exports = { resolvedUrls };
+module.exports = { resolveUrls };
