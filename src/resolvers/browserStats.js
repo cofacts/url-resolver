@@ -1,20 +1,33 @@
 const { getBrowserPromise } = require('../lib/scrap');
 
-module.exports = {
-  Query: {
-    browserStats: () => getBrowserPromise(),
-  },
-  BrowserStats: {
-    version: browser => browser.version(),
-    pageCount: async browser => {
-      const pages = await browser.pages();
-      return pages.length;
-    },
-    pages: browser => browser.pages(),
-  },
-  BrowserPage: {
-    title: page => page.title(),
-    url: page => page.url(),
-    metrics: page => page.metrics(),
-  },
+const getBrowserStats = async (_, callback) => {
+  const browser = await getBrowserPromise();
+  const rawPages = await browser.pages();
+  const pages = [];
+  for (let i = 0; i < rawPages.length; i += 1) {
+    const page = rawPages[i];
+    const rawMetrics = await page.metrics();
+    const metrics = {
+      timestamp: rawMetrics.TimeStamp,
+      documents: rawMetrics.Documents,
+      frames: rawMetrics.Frames,
+      js_event_listeners: rawMetrics.JSEventListeners,
+      nodes: rawMetrics.Nodes,
+      js_heap_used_size: rawMetrics.JSHeapUsedSize,
+      js_heap_total_size: rawMetrics.JSHeapTotalSize,
+    };
+    pages.push({
+      title: await page.title(),
+      url: page.url(),
+      metrics,
+    });
+  }
+
+  callback(null, {
+    version: await browser.version(),
+    pages,
+    pageCount: pages.length,
+  });
 };
+
+module.exports = { getBrowserStats };
