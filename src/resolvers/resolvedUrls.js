@@ -25,7 +25,9 @@ async function resolvedUrls(call) {
         const fetchResult = await fetcher;
         call.write({
           ...fetchResult,
+          top_image_url: fetchResult.topImageUrl,
           url,
+          successfully_resolved: true,
         });
       } catch (e) {
         // eslint-disable-next-line no-console

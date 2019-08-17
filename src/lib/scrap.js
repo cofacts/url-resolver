@@ -7,7 +7,7 @@ const ResolveError = require('./ResolveError');
 const rollbar = require('./rollbar');
 
 // eslint-disable-next-line node/no-unpublished-require
-const { ResolveError: ResolveErrorEnum } = require('./resolveError_pb');
+const { ResolveError: ResolveErrorEnum } = require('./resolve_error_pb');
 
 const FETCHING_TIMEOUT = 5000;
 const PROCESSING_TIMEOUT = 1000;

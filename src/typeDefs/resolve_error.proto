@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package urlResolver;
+package resolve_error;
 
 enum ResolveError {
   UNKNOWN_ERROR = 0;

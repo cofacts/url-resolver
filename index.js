@@ -6,7 +6,7 @@ const { resolvedUrls } = require('./src/resolvers/resolvedUrls');
 const { getBrowserStats } = require('./src/resolvers/browserStats');
 
 const PROTO_PATHS = {
-  urlResolver: __dirname + '/src/typeDefs/urlResolver.proto',
+  urlResolver: __dirname + '/src/typeDefs/url_resolver.proto',
   browserStats: __dirname + '/src/typeDefs/browser_stats.proto',
 };
 const protoLoaderOptions = {
@@ -27,7 +27,7 @@ Object.keys(PROTO_PATHS).map(key => {
 
 const urlResolverProto = grpc.loadPackageDefinition(
   packageDefinitions.urlResolver
-).urlResolver;
+).url_resolver;
 const browserProto = grpc.loadPackageDefinition(packageDefinitions.browserStats)
   .browser_stats;
 

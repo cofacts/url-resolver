@@ -2,7 +2,7 @@ const { google } = require('googleapis');
 const ResolveError = require('./ResolveError');
 const rollbar = require('../lib/rollbar');
 // eslint-disable-next-line node/no-unpublished-require
-const { ResolveError: ResolveErrorEnum } = require('./resolveError_pb');
+const { ResolveError: ResolveErrorEnum } = require('./resolve_error_pb');
 
 const yt = google.youtube({
   version: 'v3',

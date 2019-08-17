@@ -1,7 +1,7 @@
 const fetch = require('node-fetch');
 const ResolveError = require('./ResolveError');
 // eslint-disable-next-line node/no-unpublished-require
-const { ResolveError: ResolveErrorEnum } = require('./resolveError_pb');
+const { ResolveError: ResolveErrorEnum } = require('./resolve_error_pb');
 
 const TIMEOUT = 2000; // ms
 
