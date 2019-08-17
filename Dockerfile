@@ -47,8 +47,10 @@ RUN npm i puppeteer@1.8.0
 
 COPY . .
 
+RUN npm run compile
+
 # Run everything after as non-privileged user.
 USER pptruser
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["npm", "start"]
+CMD ["node", "index.js"]
