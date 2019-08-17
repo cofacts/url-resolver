@@ -49,7 +49,7 @@ async function fetchYoutube(id) {
     };
   } catch (e) {
     rollbar.error(e, '[fetchYoutube] Youtube data extract error', { data, id });
-    throw ResolveError(ResolveErrorEnum.UNKNOWN_YOUTUBE_ERROR, e);
+    throw new ResolveError(ResolveErrorEnum.UNKNOWN_YOUTUBE_ERROR, e);
   }
 }
 

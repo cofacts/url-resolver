@@ -20,7 +20,6 @@ async function unshorten(url) {
     return res.headers.get('location') || url;
   } catch (e) {
     const errorStr = e.toString();
-
     switch (true) {
       case errorStr.startsWith('FetchError: network timeout at:'):
       case errorStr.endsWith('reason: socket hang up'):

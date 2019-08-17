@@ -6,7 +6,7 @@
   "scripts": {
     "start": "npm run compile && node index.js",
     "build": "docker build -t mrorz/cofacts-url-resolver:latest .",
-    "lint": "eslint src/ tests/",
+    "lint": "eslint index.js src/",
     "lint:fix": "eslint --fix .",
     "test": "jest",
     "compile": "grpc_tools_node_protoc --proto_path=src/typeDefs --js_out=import_style=commonjs,binary:src/lib src/typeDefs/resolve_error.proto"
