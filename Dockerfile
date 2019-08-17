@@ -30,8 +30,7 @@ RUN chmod +x /usr/local/bin/dumb-init
 # Install puppeteer so it's available in the container.
 # We then don't put puppeteer as dependency in package.json
 # https://github.com/ebidel/try-puppeteer/blob/master/backend/Dockerfile
-#
-RUN npm i puppeteer@1.8.0
+
 
 # Add user so we don't need --no-sandbox.
 # DOESN'T WORK WITH SANDBOX -- https://github.com/Googlechrome/puppeteer/issues/290
@@ -44,10 +43,12 @@ RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
 WORKDIR /srv/www
 COPY package.json package-lock.json ./
 RUN npm install --production
+RUN npm i puppeteer@1.8.0
+
 COPY . .
 
 # Run everything after as non-privileged user.
 USER pptruser
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "index.js"]
+CMD ["npm", "start"]
