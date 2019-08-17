@@ -1,5 +1,7 @@
 const fetch = require('node-fetch');
 const ResolveError = require('./ResolveError');
+// eslint-disable-next-line node/no-unpublished-require
+const { ResolveError: ResolveErrorEnum } = require('./resolveError_pb');
 
 const TIMEOUT = 2000; // ms
 
@@ -23,12 +25,12 @@ async function unshorten(url) {
       case errorStr.startsWith('FetchError: network timeout at:'):
       case errorStr.endsWith('reason: socket hang up'):
       case errorStr.includes('reason: connect ECONNREFUSED'):
-        throw new ResolveError('NOT_REACHABLE', e);
+        throw new ResolveError(ResolveErrorEnum.NOT_REACHABLE, e);
 
       case errorStr.includes(
         "reason: Hostname/IP doesn't match certificate's altnames"
       ):
-        throw new ResolveError('HTTPS_ERROR', e);
+        throw new ResolveError(ResolveErrorEnum.HTTPS_ERROR, e);
 
       default:
         // eslint-disable-next-line no-console
