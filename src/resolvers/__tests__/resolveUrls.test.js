@@ -1,139 +1,152 @@
-const { gql } = require('../../../tests/util');
-const { closeBrowser } = require('../../lib/scrap');
+jest.mock('get-video-id');
+jest.mock('../../lib/unshorten');
+jest.mock('../../lib/normalize');
+jest.mock('../../lib/fetchYoutube');
+jest.mock('../../lib/scrap');
+
+const getVideoId = require('get-video-id');
+const unshorten = require('../../lib/unshorten');
+const normalize = require('../../lib/normalize');
+const fetchYoutube = require('../../lib/fetchYoutube');
+const scrap = require('../../lib/scrap');
+const { getResult } = require('../../lib/scrap'); // Only in the mocked scrap module
+const { resolveUrls } = require('../resolveUrls');
+const ResolveError = require('../../lib/ResolveError');
+const {
+  ResolveError: ResolveErrorEnum,
+  // eslint-disable-next-line node/no-unpublished-require
+} = require('../../lib/resolve_error_pb');
 
 describe('resolveUrls', () => {
-  it('resolves normal URLs', async () => {
-    const result = await gql`
-      {
-        resolvedUrls(urls: ["https://example.com"]) {
-          url
-          canonical
-          title
-          summary
-          html
-          topImageUrl
-          status
-          error
-        }
-      }
-    `();
+  it('should resolve multiple valid urls', done => {
+    normalize.mockImplementation(url => url);
+    unshorten.mockImplementation(async url => url);
+    fetchYoutube.mockImplementation(obj => Promise.resolve(getResult(obj.id)));
 
-    expect(result).toMatchSnapshot();
+    const urls = [
+      'some youtube url',
+      'another youtube url',
+      'the other youtube url',
+    ];
+    const call = {
+      request: {
+        urls,
+      },
+      write: jest.fn(),
+      end: jest.fn(),
+    };
+    resolveUrls(call)
+      .then(() => {
+        expect(normalize).toHaveBeenCalledTimes(urls.length);
+        expect(unshorten).toHaveBeenCalledTimes(urls.length);
+        expect(getVideoId).toHaveBeenCalledTimes(urls.length);
+        expect(fetchYoutube).toHaveBeenCalledTimes(urls.length);
+        expect(call.write).toHaveBeenCalledTimes(urls.length);
+        done();
+      })
+      .catch(err => done.fail(err));
   });
 
-  it('returns fetch error properly', async () => {
-    const result = await gql`
-      {
-        resolvedUrls(
-          urls: [
-            "https://this-cannot-be-resolved.com"
-            "line://ch/1341209850"
-            "https://identityredesign.tw/vote-list.html" # has domain, but don't respond
-            "https://www.ey.gov.tw/File/66E9E54960EB958B?A=C" # PDF file, which is not supported
-            "https://ds.easyline.com.tw/media/camera_images/2019/01/05/f/d/fdc49a36-10b2-11e9-adee-b06ebf3a9f15.jpg" # Images, not supported
-            "https://organizejobs.net/en/support.php" # Cert error
-            "https://99md.cn/fslh" # Refuses bot connection (connect ECONNREFUSED)
-          ]
-        ) {
-          url
-          error
-        }
+  it('should resolve multiple urls with some invalid ones', done => {
+    const badUrl = 'bad youtube url';
+    const customErrorMsg = 'some error';
+    normalize.mockImplementation(url => url);
+    unshorten.mockImplementation(async url => url);
+    fetchYoutube.mockImplementation(id => {
+      if (id === badUrl) {
+        return Promise.reject(new Error(customErrorMsg));
       }
-    `();
+      return Promise.resolve(getResult(id));
+    });
 
-    expect(result).toMatchSnapshot();
+    const errors = [];
+    const urls = ['some youtube url', badUrl, 'the other youtube url'];
+    const call = {
+      request: {
+        urls,
+      },
+      write: jest.fn().mockImplementation(res => {
+        if (res.hasOwnProperty('error')) {
+          errors.push(res.error);
+        }
+      }),
+      end: jest.fn(),
+    };
+    resolveUrls(call)
+      .then(() => {
+        expect(normalize).toHaveBeenCalledTimes(urls.length);
+        expect(unshorten).toHaveBeenCalledTimes(urls.length);
+        expect(getVideoId).toHaveBeenCalledTimes(urls.length);
+        expect(fetchYoutube).toHaveBeenCalledTimes(urls.length);
+        expect(call.write).toHaveBeenCalledTimes(urls.length);
+        expect(errors).toHaveLength(1);
+        expect(errors[0]).toBe(undefined); // since this error is not a `ResolveError`
+        done();
+      })
+      .catch(err => done.fail(err));
   });
 
-  it.skip('resolves alert boxes', async () => {});
-
-  it.skip('resolves 301 redirects', async () => {});
-
-  it('resolves Javascript / html redirects', async () => {
-    const result = await gql`
-      {
-        resolvedUrls(
-          urls: [
-            "https://www.tstartel.com/static/discount/20161020_rollover/index.htm?utm_source=line&utm_medium=pic&utm_content=line_0504.rollover" # uses window.location.href
-            "https://ikeabc.ecrm.com.tw/ikeaoa/l/11166" # uses window.location.replace()
-            "https://www.gvm.com.tw/article_content_33230.html" # uses <meta /> refresh
-          ]
-        ) {
-          url
-          canonical
-          title
-        }
+  it('should resolve multiple urls with some invalid ones and error type ResolveError', done => {
+    const badUrl = 'bad youtube url';
+    normalize.mockImplementation(url => url);
+    unshorten.mockImplementation(async url => url);
+    fetchYoutube.mockImplementation(id => {
+      if (id === badUrl) {
+        return Promise.reject(
+          new ResolveError(ResolveErrorEnum.UNKNOWN_YOUTUBE_ERROR)
+        );
       }
-    `();
+      return Promise.resolve(getResult(id));
+    });
 
-    expect(result).toMatchSnapshot();
+    const errors = [];
+    const urls = ['some youtube url', badUrl, 'the other youtube url'];
+    const call = {
+      request: {
+        urls,
+      },
+      write: jest.fn().mockImplementation(res => {
+        if (res.hasOwnProperty('error')) {
+          errors.push(res.error);
+        }
+      }),
+      end: jest.fn(),
+    };
+    resolveUrls(call)
+      .then(() => {
+        expect(normalize).toHaveBeenCalledTimes(urls.length);
+        expect(unshorten).toHaveBeenCalledTimes(urls.length);
+        expect(getVideoId).toHaveBeenCalledTimes(urls.length);
+        expect(fetchYoutube).toHaveBeenCalledTimes(urls.length);
+        expect(call.write).toHaveBeenCalledTimes(urls.length);
+        expect(errors).toHaveLength(1);
+        expect(errors[0]).toBe(ResolveErrorEnum.UNKNOWN_YOUTUBE_ERROR);
+        done();
+      })
+      .catch(err => done.fail(err));
   });
 
-  it('handles youtube URL', async () => {
-    const result = await gql`
-      {
-        resolvedUrls(
-          urls: [
-            "https://www.youtube.com/watch?v=jNQXAC9IVRw"
-            "https://www.youtube.com/watch?v=not-exist"
-          ]
-        ) {
-          url
-          canonical
-          title
-          summary
-          status
-          error
-        }
-      }
-    `();
+  it('should resolve multiple non-youtube urls', done => {
+    normalize.mockImplementation(url => url);
+    unshorten.mockImplementation(async url => url);
 
-    expect(result).toMatchSnapshot();
+    const urls = ['some url', 'another url', 'the other url'];
+    const call = {
+      request: {
+        urls,
+      },
+      write: jest.fn(),
+      end: jest.fn(),
+    };
+    resolveUrls(call)
+      .then(() => {
+        expect(normalize).toHaveBeenCalledTimes(urls.length);
+        expect(unshorten).toHaveBeenCalledTimes(urls.length);
+        expect(getVideoId).toHaveBeenCalledTimes(urls.length);
+        expect(scrap).toHaveBeenCalledTimes(urls.length);
+        expect(call.write).toHaveBeenCalledTimes(urls.length);
+        done();
+      })
+      .catch(err => done.fail(err));
   });
-
-  it('returns minimal data on error', async () => {
-    const result = await gql`
-      {
-        resolvedUrls(
-          urls: [
-            "http://blog.udn.com/watercmd/1066441" # https://github.com/cofacts/url-resolver/issues/2
-            "https://pension.president.gov.tw/cp.aspx?n=0710ED8C9356A871" # This page overrides URL and causes error when fetching topImageUrl - https://github.com/cofacts/url-resolver/issues/4
-            "http://ms7.tw/DL/D?k=app_daily_coupon" # This page don't have error, but executor() returns nothing
-            "http://blog.renren.com/share/300233063/14628038408" # https://github.com/cofacts/url-resolver/issues/4
-          ]
-        ) {
-          url
-          canonical
-          title
-          summary
-          topImageUrl
-          error
-        }
-      }
-    `();
-
-    expect(result).toMatchSnapshot();
-  });
-
-  it('handles URLs without protocol', async () => {
-    const result = await gql`
-      {
-        resolvedUrls(urls: ["example.com"]) {
-          url
-          canonical
-          title
-        }
-      }
-    `();
-
-    // Note that url should be same as input.
-    //
-    expect(result).toMatchSnapshot();
-  });
-});
-
-afterAll(async () => {
-  await closeBrowser();
-
-  // eslint-disable-next-line no-console
-  console.log('browser closed.');
 });

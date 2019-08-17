@@ -6,9 +6,9 @@ const normalize = require('../lib/normalize');
 const fetchYoutube = require('../lib/fetchYoutube');
 const ResolveError = require('../lib/ResolveError');
 
-async function resolveUrls(call) {
+function resolveUrls(call) {
   const { urls } = call.request;
-  Promise.all(
+  return Promise.all(
     urls.map(async url => {
       try {
         const normalized = normalize(url);
