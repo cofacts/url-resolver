@@ -4,7 +4,7 @@ const grpc = require('grpc');
 const protoLoader = require('@grpc/proto-loader');
 const { resolvedUrls } = require('./src/resolvers/resolvedUrls');
 
-const PROTO_PATH = __dirname + '/src/urlResolver.proto';
+const PROTO_PATH = __dirname + '/src/typeDefs/urlResolver.proto';
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
   keepCase: true,
   longs: String,
