@@ -22,7 +22,7 @@ const testResolveUrl = () => {
     `localhost:${PORT}`,
     grpc.credentials.createInsecure()
   );
-  const urls = ['www.sss.com'];
+  const urls = [];
   const call = client.ResolveUrl({ urls });
   const responses = [];
   call.on('data', response => {
