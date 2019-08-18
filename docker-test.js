@@ -1,8 +1,11 @@
 require('dotenv').config();
 
-const PROTO_PATH = __dirname + '/src/typeDefs/url_resolver.proto';
 const grpc = require('grpc');
 const protoLoader = require('@grpc/proto-loader');
+
+const PORT = process.env.PORT || 4000;
+
+const PROTO_PATH = __dirname + '/src/typeDefs/url_resolver.proto';
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
   keepCase: true,
   longs: String,
@@ -14,13 +17,12 @@ const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
 const urlResolverProto = grpc.loadPackageDefinition(packageDefinition)
   .url_resolver;
 
-const main = () => {
-  const PORT = process.env.PORT || 4000;
+const testResolveUrl = () => {
   const client = new urlResolverProto.UrlResolver(
     `localhost:${PORT}`,
     grpc.credentials.createInsecure()
   );
-  const urls = [];
+  const urls = ['www.sss.com'];
   const call = client.ResolveUrl({ urls });
   const responses = [];
   call.on('data', response => {
@@ -29,12 +31,13 @@ const main = () => {
   call.on('error', err => {
     throw new Error(`Test failed: ${err}`);
   });
-  call.on('end', () => {});
+  // eslint-disable-next-line no-console
+  call.on('end', () => console.log(JSON.stringify(responses, null, 4)));
 };
 
-main();
+testResolveUrl();
 
-/** For browser stats **/
+/** For browser stats; uncomment to use it **/
 /*
 const BROWSER_PROTO_PATH = __dirname + '/src/typeDefs/browser_stats.proto';
 const browserPackageDefinition = protoLoader.loadSync(BROWSER_PROTO_PATH, {
@@ -48,18 +51,19 @@ const browserPackageDefinition = protoLoader.loadSync(BROWSER_PROTO_PATH, {
 const browserProto = grpc.loadPackageDefinition(browserPackageDefinition)
   .browser_stats;
 
-function main() {
-  var client = new browserProto.BrowserStats(
-    'localhost:4000',
+const testGetBrowserStats = () => {
+  const client = new browserProto.BrowserStats(
+    `localhost:${PORT}`,
     grpc.credentials.createInsecure()
   );
-  const call = client.GetStats({}, (err, res) => {
+  client.GetStats({}, (err, res) => {
     if (err) {
-      console.log(err);
-      return;
+      throw new Error(err);
     }
-    console.log(res);
-    console.log(res.pages[0].metrics)
+    // eslint-disable-next-line no-console
+    console.log(JSON.stringify(res, null, 4));
   });
-}
+};
+
+testGetBrowserStats();
 */

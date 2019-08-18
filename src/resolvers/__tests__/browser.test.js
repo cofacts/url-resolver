@@ -8,7 +8,7 @@ describe('browser', () => {
     const callback = (_, res) => {
       expect(res).toHaveProperty('version');
       expect(res).toHaveProperty('pages');
-      expect(res.pageCount).toBe(pageCount);
+      expect(res.page_count).toBe(pageCount);
       expect(res.pages[0]).toHaveProperty('title');
       expect(res.pages[0]).toHaveProperty('url');
       expect(res.pages[0]).toHaveProperty('metrics');

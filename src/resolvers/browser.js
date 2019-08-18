@@ -26,7 +26,7 @@ const getBrowserStats = async (_, callback) => {
   callback(null, {
     version: await browser.version(),
     pages,
-    pageCount: pages.length,
+    page_count: pages.length,
   });
 };
 
