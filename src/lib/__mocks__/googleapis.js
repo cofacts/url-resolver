@@ -1,9 +1,4 @@
-const testCases = {
-  EMPTY: 'empty',
-  THROW_ERROR: 'throw_error',
-};
-
-const response = {
+const normalResponse = {
   data: {
     items: [
       {
@@ -21,25 +16,19 @@ const response = {
   },
 };
 
-const yt = {
-  videos: {
-    list: jest.fn().mockImplementation(obj => {
-      if (obj.id === testCases.EMPTY) {
-        return Promise.resolve({ data: { items: [] } });
-      }
-      if (obj.id === testCases.THROW_ERROR) {
-        return Promise.resolve({ data: { items: [{ not_snippet: '' }] } });
-      }
-      return Promise.resolve(response);
-    }),
-  },
-};
+let yt;
 
 const mod = {
   google: {
-    youtube: jest.fn().mockReturnValue(yt),
+    youtube: () => yt,
   },
-  testCases, // Only in this mocked module
+  __setResponse: (response = normalResponse) => {
+    yt = {
+      videos: {
+        list: () => Promise.resolve(response),
+      },
+    };
+  },
 };
 
 module.exports = mod;
