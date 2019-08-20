@@ -16,18 +16,18 @@ const normalResponse = {
   },
 };
 
-let yt;
+let mockedResponse;
 
 const mod = {
   google: {
-    youtube: () => yt,
+    youtube: () => ({
+      videos: {
+        list: () => Promise.resolve(mockedResponse),
+      },
+    }),
   },
   __setResponse: (response = normalResponse) => {
-    yt = {
-      videos: {
-        list: () => Promise.resolve(response),
-      },
-    };
+    mockedResponse = response;
   },
 };
 
