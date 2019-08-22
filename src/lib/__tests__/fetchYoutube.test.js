@@ -25,7 +25,6 @@ describe('fetchYoutube', () => {
     require('googleapis').__setResponse({
       data: { items: [{ not_snippet: '' }] },
     });
-    const test = async () => await fetchYoutube(id);
-    await expect(test()).rejects.toThrow(ResolveError);
+    await expect(fetchYoutube(id)).rejects.toThrow(ResolveError);
   });
 });

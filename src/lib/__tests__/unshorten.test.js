@@ -33,24 +33,21 @@ describe('unshorten', () => {
       err.name = 'FetchError';
       throw err;
     });
-    const test = async () => await unshorten(url);
-    await expect(test()).rejects.toThrow(ResolveError);
+    await expect(unshorten(url)).rejects.toThrow(ResolveError);
   });
 
   it('should throw an error if the socket hung up', async () => {
     require('node-fetch').__setupFetch(undefined, () => {
       throw new Error('reason: socket hang up');
     });
-    const test = async () => await unshorten(url);
-    await expect(test()).rejects.toThrow(ResolveError);
+    await expect(unshorten(url)).rejects.toThrow(ResolveError);
   });
 
   it('should throw an error if ECONNREFUSED was received', async () => {
     require('node-fetch').__setupFetch(undefined, () => {
       throw new Error('reason: connect ECONNREFUSED');
     });
-    const test = async () => await unshorten(url);
-    await expect(test()).rejects.toThrow(ResolveError);
+    await expect(unshorten(url)).rejects.toThrow(ResolveError);
   });
 
   it('should throw an error if hostname did not match altname in request', async () => {
@@ -59,8 +56,7 @@ describe('unshorten', () => {
         "reason: Hostname/IP doesn't match certificate's altnames"
       );
     });
-    const test = async () => await unshorten(url);
-    await expect(test()).rejects.toThrow(ResolveError);
+    await expect(unshorten(url)).rejects.toThrow(ResolveError);
   });
 
   it('should return the url itself if some other error happened', async () => {
