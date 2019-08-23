@@ -6,6 +6,9 @@ const { TimeoutError } = require('puppeteer/Errors');
 const ResolveError = require('./ResolveError');
 const rollbar = require('./rollbar');
 
+// eslint-disable-next-line node/no-unpublished-require
+const { ResolveError: ResolveErrorEnum } = require('./resolve_error_pb');
+
 const FETCHING_TIMEOUT = 5000;
 const PROCESSING_TIMEOUT = 1000;
 
@@ -134,23 +137,23 @@ async function scrap(url) {
 
       case errorStr.startsWith('Error: Protocol error'):
         await page.close();
-        throw new ResolveError('INVALID_URL', e);
+        throw new ResolveError(ResolveErrorEnum.INVALID_URL, e);
 
       case errorStr.startsWith('Error: net::ERR_NAME_NOT_RESOLVED'):
         await page.close();
-        throw new ResolveError('NAME_NOT_RESOLVED', e);
+        throw new ResolveError(ResolveErrorEnum.NAME_NOT_RESOLVED, e);
 
       case errorStr.startsWith('Error: net::ERR_ABORTED'):
         // See: https://github.com/GoogleChrome/puppeteer/issues/2794#issuecomment-400512765
         await page.close();
-        throw new ResolveError('UNSUPPORTED', e);
+        throw new ResolveError(ResolveErrorEnum.UNSUPPORTED, e);
 
       default:
         rollbar.error(e, '[scrap] page.goto() Error', { url });
 
         // unkown error, directly return
         await page.close();
-        throw new ResolveError('UNKNOWN_SCRAP_ERROR', e);
+        throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAP_ERROR, e);
     }
   }
   if (response) {
@@ -159,7 +162,7 @@ async function scrap(url) {
       // Fixes: https://rollbar.com/mrorz/url-resolver/items/16/
       await page.close();
       throw new ResolveError(
-        'UNSUPPORTED',
+        ResolveErrorEnum.UNSUPPORTED,
         new Error(`Unsupported content type: ${contentType}`)
       );
     }
@@ -176,7 +179,7 @@ async function scrap(url) {
   } catch (e) {
     // Maybe context destroyed error (caused by JS / HTML redirects)
     await page.close();
-    throw new ResolveError('UNKNOWN_SCRAP_ERROR', e);
+    throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAP_ERROR, e);
   }
 
   // eslint-disable-next-line no-console
@@ -196,7 +199,7 @@ async function scrap(url) {
   } catch (e) {
     if (!(e instanceof TimeoutError)) {
       await page.close();
-      throw new ResolveError('UNKNOWN_SCRAP_ERROR', e);
+      throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAP_ERROR, e);
     }
   }
 
@@ -213,7 +216,7 @@ async function scrap(url) {
   } catch (e) {
     if (!(e instanceof TimeoutError)) {
       await page.close();
-      throw new ResolveError('UNKNOWN_SCRAP_ERROR', e);
+      throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAP_ERROR, e);
     }
   }
 
@@ -237,14 +240,14 @@ async function scrap(url) {
   } catch (e) {
     // Maybe context destroyed error (caused by JS / HTML redirects)
     await page.close();
-    throw new ResolveError('UNKNOWN_SCRAP_ERROR', e);
+    throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAP_ERROR, e);
   }
 
   // For URLs that cannot navigate properly
   if (canonical === 'about:blank') {
     await page.close();
     throw new ResolveError(
-      'UNSUPPORTED',
+      ResolveErrorEnum.UNSUPPORTED,
       new Error(`Cannot navigate to ${url}`)
     );
   }
@@ -314,7 +317,7 @@ async function scrap(url) {
 
   // If we still cannot get resultArticle, throw
   if (!resultArticle) {
-    throw new ResolveError('UNKNOWN_SCRAP_ERROR');
+    throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAP_ERROR);
   }
 
   return {

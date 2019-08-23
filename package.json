@@ -4,20 +4,23 @@
   "description": "Scraps URL and returns summarization results",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "npm run compile && node index.js",
     "build": "docker build -t mrorz/cofacts-url-resolver:latest .",
-    "lint": "eslint src/ tests/",
+    "lint": "eslint index.js docker-test.js src/",
     "lint:fix": "eslint --fix .",
-    "test": "jest"
+    "test": "jest",
+    "compile": "grpc_tools_node_protoc --proto_path=src/typeDefs --js_out=import_style=commonjs,binary:src/lib src/typeDefs/resolve_error.proto"
   },
   "author": "MrOrz",
   "license": "MIT",
   "dependencies": {
-    "apollo-server": "^2.3.1",
+    "@grpc/proto-loader": "^0.1.0",
     "dotenv": "^6.0.0",
     "get-video-id": "^3.1.0",
+    "google-protobuf": "^3.9.1",
     "googleapis": "^36.0.0",
-    "graphql": "^14.0.2",
+    "grpc": "^1.11.0",
+    "grpc-tools": "^1.8.0",
     "node-fetch": "^2.2.0",
     "rollbar": "^2.5.1"
   },
@@ -35,6 +38,6 @@
     "node": ">=10.0.0"
   },
   "jest": {
-    "setupTestFrameworkScriptFile": "./tests/setup.js"
+    "clearMocks": true
   }
 }

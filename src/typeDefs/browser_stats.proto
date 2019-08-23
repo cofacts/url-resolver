@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package browser_stats;
+
+service BrowserStats {
+  rpc GetStats (Empty) returns (Stats) {}
+}
+
+message Empty {
+
+}
+
+message PageMetrics {
+  float timestamp = 1;
+  int32 documents = 2;
+  int32 frames = 3;
+  int32 js_event_listeners = 4;
+  int32 nodes = 5;
+  int32 js_heap_used_size = 6;
+  int32 js_heap_total_size = 7;
+}
+
+message Page {
+  string title = 1;
+  string url = 2;
+  PageMetrics metrics = 3;
+}
+
+message Stats {
+  string version = 1;  // Browser version currently connected to cofacts-url-resolver
+  repeated Page pages = 2;  // Currently opened pages of the browser
+  int32 page_count = 3;  // Number of currently opened pages of the browser
+}

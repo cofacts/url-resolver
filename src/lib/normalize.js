@@ -14,7 +14,7 @@ function normalize(url) {
     // Facebook --> mobile facebook or better webpage loading performance
     .replace(/^https?:\/\/www.facebook.com/i, 'https://m.facebook.com')
     // Remove facebook click id
-    .replace(/fbclid=[^&]*&?/, '');
+    .replace(/[?&]fbclid=[^&]*&?/, '');
 
   return normalized;
 }
