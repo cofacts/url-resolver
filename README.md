@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/cofacts/url-resolver.svg?branch=master)](https://travis-ci.org/cofacts/url-resolver) [![Coverage Status](https://coveralls.io/repos/github/cofacts/url-resolver/badge.svg?branch=master)](https://coveralls.io/github/cofacts/url-resolver?branch=master)
 
-A GraphQL service that scraps the specified URL and returns scrapped result and summary extracted by
+A gRPC service that scraps the specified URL and returns scrapped result and summary extracted by
 [Readability.js]
 
 ## Usage
@@ -12,12 +12,12 @@ First, create an `.env` file from `.env.sample`.
 Run url resolver from built docker images
 
 ```bash
-$ docker pull johnsonliang/cofacts-url-resolver
-$ docker run --rm --env-file .env -p 4000:4000 johnsonliang/cofacts-url-resolver
+$ docker pull cofacts/url-resolver
+$ docker run --rm --env-file .env -p 4000:4000 cofacts/url-resolver
 ```
+You can use gRPC clients like [BloomRPC](https://github.com/uw-labs/bloomrpc) to access the service for testing purpose.
 
-Visit http://localhost:4000, you will be given a GraphQL Playground. Consult the schema on the right
-for reference and usage.
+To access the gRPC service, you can see `docker-test.js` for an example that uses `@grpc/proto-loader`.
 
 ## Development
 
@@ -35,4 +35,12 @@ Start dev server
 
 ```bash
 $ npm start
+```
+
+## Build
+
+Directly use docker to build image.
+
+```bash
+$ docker build -t cofacts/url-resolver:latest .
 ```
