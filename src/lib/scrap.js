@@ -20,7 +20,11 @@ let isBrowserClosing = false;
  */
 function launchBrowser() {
   browserPromise = puppeteer.launch({
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage', // https://github.com/puppeteer/puppeteer/issues/1321#issuecomment-378361236
+    ],
     // devtools: true,
   });
   browserPromise.then(browser => {
@@ -190,6 +194,7 @@ async function scrap(url) {
   //
   // Ref: https://github.com/cofacts/url-resolver/issues/4
   //
+
   await page.setJavaScriptEnabled(false);
   try {
     await page.reload({
