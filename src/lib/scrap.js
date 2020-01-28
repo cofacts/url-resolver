@@ -20,6 +20,7 @@ let isBrowserClosing = false;
  */
 function launchBrowser() {
   browserPromise = puppeteer.launch({
+    ignoreHTTPSErrors: true,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
