@@ -1,9 +1,6 @@
-const getVideoId = require('get-video-id');
-
 const scrap = require('../lib/scrap');
 const unshorten = require('../lib/unshorten');
 const normalize = require('../lib/normalize');
-const fetchYoutube = require('../lib/fetchYoutube');
 const ResolveError = require('../lib/ResolveError');
 
 function resolveUrls(call) {
@@ -13,16 +10,8 @@ function resolveUrls(call) {
       try {
         const normalized = normalize(url);
         const unshortened = await unshorten(normalized);
-        const { id: videoId, service } = getVideoId(unshortened);
 
-        let fetcher;
-        if (videoId && service === 'youtube') {
-          fetcher = fetchYoutube(videoId);
-        } else {
-          fetcher = scrap(unshortened);
-        }
-
-        const fetchResult = await fetcher;
+        const fetchResult = await scrap(unshortened);
         call.write({
           ...fetchResult,
           top_image_url: fetchResult.topImageUrl,
