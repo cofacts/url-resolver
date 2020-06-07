@@ -13,7 +13,7 @@ function resolveUrls(call) {
         const unshortened = await unshorten(normalized);
         const fetchResult = await parseMeta(unshortened);
 
-        if (fetchResult.isIncomplete()) {
+        if (fetchResult.isIncomplete) {
           fetchResult.merge(await scrap(unshortened));
         }
 
