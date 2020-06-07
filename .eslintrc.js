@@ -1,23 +1,27 @@
 module.exports = {
-  parserOptions: { ecmaVersion: 2018 },
-  extends: [
-    'eslint:recommended',
-    'plugin:node/recommended',
-    'prettier',
-  ],
+  parser: 'babel-eslint',
+  parserOptions: { ecmaVersion: 2020 },
+  extends: ['eslint:recommended', 'plugin:node/recommended', 'prettier'],
   env: {
-    node: true, es6: true, jest: true
+    node: true,
+    es6: true,
+    jest: true,
+    es2020: true,
   },
-  plugins: [
-    'prettier',
-  ],
+  plugins: ['prettier'],
   rules: {
-    'prettier/prettier': ['error', {
-      trailingComma: 'es5',
-      singleQuote: true,
-    }],
-    'node/no-unpublished-require': ['error', {
-      allowModules: ['puppeteer']
-    }],
+    'prettier/prettier': [
+      'error',
+      {
+        trailingComma: 'es5',
+        singleQuote: true,
+      },
+    ],
+    'node/no-unpublished-require': [
+      'error',
+      {
+        allowModules: ['puppeteer'],
+      },
+    ],
   },
-}
+};
