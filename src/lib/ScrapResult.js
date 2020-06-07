@@ -1,5 +1,6 @@
 const TEXT_FIELDS = ['title', 'summary'];
 const META_FIELDS = ['canonical', 'topImageUrl'];
+const OVERRIDE_FIELDS = ['error', 'status'];
 
 class ScrapResult {
   constructor(init) {
@@ -10,6 +11,7 @@ class ScrapResult {
    * Merge fetched fields with the following rules.
    * For text fields, choose longer fields.
    * For meta fields, only update when it does not exist.
+   * For overridden fields, always use value from merged scrapResult.
    * For other fields, they are kept intact.
    *
    * @param {ScrapResult} scrapResult
@@ -29,6 +31,10 @@ class ScrapResult {
       ) {
         this[field] = scrapResult[field];
       }
+    });
+
+    OVERRIDE_FIELDS.forEach(field => {
+      this[field] = scrapResult[field];
     });
   }
 
@@ -69,7 +75,7 @@ class ScrapResult {
   /**
    * @type {string}
    *
-   * Note: this field is optional
+   * Note: this field is optional.
    */
   html;
 

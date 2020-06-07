@@ -1,6 +1,7 @@
 const scrap = require('../lib/scrap');
 const unshorten = require('../lib/unshorten');
 const normalize = require('../lib/normalize');
+const parseMeta = require('../lib/parseMeta');
 const ResolveError = require('../lib/ResolveError');
 
 function resolveUrls(call) {
@@ -10,12 +11,16 @@ function resolveUrls(call) {
       try {
         const normalized = normalize(url);
         const unshortened = await unshorten(normalized);
+        const fetchResult = await parseMeta(unshortened);
 
-        const fetchResult = await scrap(unshortened);
+        if (fetchResult.isIncomplete()) {
+          fetchResult.merge(await scrap(unshortened));
+        }
+
         call.write({
           ...fetchResult,
           top_image_url: fetchResult.topImageUrl,
-          url,
+          url, // Provide the most original url
           successfully_resolved: true,
         });
       } catch (e) {
