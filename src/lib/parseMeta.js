@@ -6,7 +6,7 @@ const ScrapResult = require('./ScrapResult');
  * @returns {Promise<ScrapResult>}
  */
 async function parseMeta(url) {
-  const result = await unfurl(url);
+  const result = await unfurl(new URL(url).toString());
   const get = (...path) =>
     path.reduce(
       (ret, propName) => (typeof ret === 'object' ? ret[propName] : undefined),
