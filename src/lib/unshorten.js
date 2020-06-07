@@ -11,7 +11,7 @@ const TIMEOUT = 2000; // ms
  */
 async function unshorten(url) {
   try {
-    const res = await fetch(url, {
+    const res = await fetch(new URL(url), {
       method: 'HEAD',
       redirect: 'manual',
       timeout: TIMEOUT,
