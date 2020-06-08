@@ -3,7 +3,7 @@ const normalize = require('../normalize');
 describe('normalize', () => {
   it('should be able to normalize protocols', () => {
     const url = 'example.com';
-    const expected = `http://${url}`;
+    const expected = `http://${url}/`;
     expect(normalize(url)).toBe(expected);
   });
 
@@ -20,5 +20,12 @@ describe('normalize', () => {
     const url = 'http://example.com/?aaa=bbb&fbclid=abcdef';
     const expected = `http://example.com/?aaa=bbb`;
     expect(normalize(url)).toBe(expected);
+  });
+
+  it('should throw in case of malformed URL', () => {
+    const url = 'malformed url';
+    expect(() => normalize(url)).toThrowErrorMatchingInlineSnapshot(
+      `"TypeError: Invalid URL"`
+    );
   });
 });
