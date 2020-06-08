@@ -1,6 +1,6 @@
 const TEXT_FIELDS = ['title', 'summary'];
 const META_FIELDS = ['canonical', 'topImageUrl'];
-const OVERRIDE_FIELDS = ['error', 'status'];
+const OVERRIDE_FIELDS = ['status'];
 
 class ScrapResult {
   constructor(init) {
@@ -83,11 +83,6 @@ class ScrapResult {
    * @type {integer} fetch status. 0 if no response.
    */
   status;
-
-  /**
-   * @type {string}
-   */
-  error;
 }
 
 module.exports = ScrapResult;

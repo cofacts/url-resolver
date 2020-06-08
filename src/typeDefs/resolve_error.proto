@@ -10,5 +10,4 @@ enum ResolveError {
   UNSUPPORTED = 4; // File download, etc
   HTTPS_ERROR = 5; // HTTPS related error, such as invalid certificates
   UNKNOWN_SCRAP_ERROR = 6;
-  UNKNOWN_YOUTUBE_ERROR = 7;
 }
