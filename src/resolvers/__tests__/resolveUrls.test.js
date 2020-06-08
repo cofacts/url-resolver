@@ -1,27 +1,38 @@
-jest.mock('get-video-id');
 jest.mock('../../lib/unshorten');
 jest.mock('../../lib/normalize');
+jest.mock('../../lib/parseMeta');
 jest.mock('../../lib/scrap');
 
+const ScrapResult = require('../../lib/ScrapResult');
 const unshorten = require('../../lib/unshorten');
 const normalize = require('../../lib/normalize');
+const parseMeta = require('../../lib/parseMeta');
+
 const scrap = require('../../lib/scrap');
 const { resolveUrls } = require('../resolveUrls');
-
+const ResolveError = require('../../lib/ResolveError');
 const {
   ResolveError: ResolveErrorEnum,
   // eslint-disable-next-line node/no-unpublished-require
 } = require('../../lib/resolve_error_pb');
 
 describe('resolveUrls', () => {
+  afterEach(() => {
+    normalize.mockClear();
+    unshorten.mockClear();
+    parseMeta.mockClear();
+    scrap.mockClear();
+  });
+
   it('should resolve multiple valid urls', done => {
     normalize.mockImplementation(url => url);
     unshorten.mockImplementation(async url => url);
+    parseMeta.mockImplementation(url => Promise.resolve(scrap.getResult(url)));
 
     const urls = [
-      'some youtube url',
-      'another youtube url',
-      'the other youtube url',
+      'some url with complete meta',
+      'another url with complete meta',
+      'the other url with complete meta',
     ];
     const call = {
       request: {
@@ -34,6 +45,7 @@ describe('resolveUrls', () => {
       .then(() => {
         expect(normalize).toHaveBeenCalledTimes(urls.length);
         expect(unshorten).toHaveBeenCalledTimes(urls.length);
+        expect(scrap).toHaveBeenCalledTimes(0); // No need to scrap
         expect(call.write).toHaveBeenCalledTimes(urls.length);
         done();
       })
@@ -42,8 +54,16 @@ describe('resolveUrls', () => {
 
   it('should resolve multiple urls with some invalid ones', done => {
     const badUrl = 'bad youtube url';
+    const customErrorMsg = 'some error';
+
     normalize.mockImplementation(url => url);
     unshorten.mockImplementation(async url => url);
+    parseMeta.mockImplementation(url => {
+      if (url === badUrl) {
+        return Promise.reject(new Error(customErrorMsg));
+      }
+      return Promise.resolve(scrap.getResult(url));
+    });
 
     const errors = [];
     const urls = ['some youtube url', badUrl, 'the other youtube url'];
@@ -52,7 +72,7 @@ describe('resolveUrls', () => {
         urls,
       },
       write: jest.fn().mockImplementation(res => {
-        if (res.hasOwnProperty('error')) {
+        if (Object.prototype.hasOwnProperty.call(res, 'error')) {
           errors.push(res.error);
         }
       }),
@@ -62,6 +82,8 @@ describe('resolveUrls', () => {
       .then(() => {
         expect(normalize).toHaveBeenCalledTimes(urls.length);
         expect(unshorten).toHaveBeenCalledTimes(urls.length);
+        expect(parseMeta).toHaveBeenCalledTimes(urls.length);
+        expect(scrap).toHaveBeenCalledTimes(0); // No need to scrap
         expect(call.write).toHaveBeenCalledTimes(urls.length);
         expect(errors).toHaveLength(1);
         expect(errors[0]).toBe(undefined); // since this error is not a `ResolveError`
@@ -73,7 +95,14 @@ describe('resolveUrls', () => {
   it('should resolve multiple urls with some invalid ones and error type ResolveError', done => {
     const badUrl = 'bad youtube url';
     normalize.mockImplementation(url => url);
-    unshorten.mockImplementation(async url => url);
+    unshorten.mockImplementation(async url => {
+      if (url === badUrl) {
+        throw new ResolveError(ResolveErrorEnum.NOT_REACHABLE);
+      }
+
+      return url;
+    });
+    parseMeta.mockImplementation(url => Promise.resolve(scrap.getResult(url)));
 
     const errors = [];
     const urls = ['some youtube url', badUrl, 'the other youtube url'];
@@ -82,7 +111,7 @@ describe('resolveUrls', () => {
         urls,
       },
       write: jest.fn().mockImplementation(res => {
-        if (res.hasOwnProperty('error')) {
+        if (Object.prototype.hasOwnProperty.call(res, 'error')) {
           errors.push(res.error);
         }
       }),
@@ -92,17 +121,25 @@ describe('resolveUrls', () => {
       .then(() => {
         expect(normalize).toHaveBeenCalledTimes(urls.length);
         expect(unshorten).toHaveBeenCalledTimes(urls.length);
+        expect(parseMeta).toHaveBeenCalledTimes(
+          urls.length - 1 /* skips not reachable error */
+        );
         expect(call.write).toHaveBeenCalledTimes(urls.length);
+        expect(scrap).toHaveBeenCalledTimes(0); // No need to scrap
         expect(errors).toHaveLength(1);
-        expect(errors[0]).toBe(ResolveErrorEnum.UNKNOWN_YOUTUBE_ERROR);
+        expect(errors[0]).toBe(ResolveErrorEnum.NOT_REACHABLE);
         done();
       })
       .catch(err => done.fail(err));
   });
 
-  it('should resolve multiple non-youtube urls', done => {
+  it('should resolve multiple urls with incomplete meta', done => {
     normalize.mockImplementation(url => url);
     unshorten.mockImplementation(async url => url);
+    // parseMeta returning incomplete result
+    parseMeta.mockImplementation(url =>
+      Promise.resolve(new ScrapResult({ url, canonical: 'c' }))
+    );
 
     const urls = ['some url', 'another url', 'the other url'];
     const call = {
@@ -116,6 +153,7 @@ describe('resolveUrls', () => {
       .then(() => {
         expect(normalize).toHaveBeenCalledTimes(urls.length);
         expect(unshorten).toHaveBeenCalledTimes(urls.length);
+        expect(parseMeta).toHaveBeenCalledTimes(urls.length);
         expect(scrap).toHaveBeenCalledTimes(urls.length);
         expect(call.write).toHaveBeenCalledTimes(urls.length);
         done();
