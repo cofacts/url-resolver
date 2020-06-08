@@ -8,10 +8,12 @@ function resolveUrls(call) {
   const { urls } = call.request;
   return Promise.all(
     urls.map(async url => {
+      let fetchResult;
       try {
         const normalized = normalize(url);
         const unshortened = await unshorten(normalized);
-        const fetchResult = await parseMeta(unshortened);
+
+        fetchResult = await parseMeta(unshortened);
 
         if (fetchResult.isIncomplete) {
           fetchResult.merge(await scrap(unshortened));
@@ -31,6 +33,7 @@ function resolveUrls(call) {
           errMsg = e.returnedError;
         }
         call.write({
+          ...fetchResult, // Still try return available fetch result
           url,
           error: errMsg,
         });

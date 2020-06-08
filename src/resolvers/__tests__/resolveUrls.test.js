@@ -137,12 +137,23 @@ describe('resolveUrls', () => {
   it('should resolve multiple urls with incomplete meta', done => {
     normalize.mockImplementation(url => url);
     unshorten.mockImplementation(async url => url);
-    // parseMeta returning incomplete result
+
+    // parseMeta returning incomplete result, but with canonical
     parseMeta.mockImplementation(url =>
-      Promise.resolve(new ScrapResult({ url, canonical: 'c' }))
+      Promise.resolve(
+        new ScrapResult({ url, canonical: 'canonical from parseMeta' })
+      )
     );
 
-    const urls = ['some url', 'another url', 'the other url'];
+    const scrapFailUrl = 'url that triggers scrap fail';
+    scrap.mockImplementation(async url => {
+      if (url === scrapFailUrl) {
+        throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAP_ERROR);
+      }
+      return scrap.getResult(url);
+    });
+
+    const urls = ['some url', 'another url', scrapFailUrl];
     const call = {
       request: {
         urls,
@@ -157,6 +168,27 @@ describe('resolveUrls', () => {
         expect(parseMeta).toHaveBeenCalledTimes(urls.length);
         expect(scrap).toHaveBeenCalledTimes(urls.length);
         expect(call.write).toHaveBeenCalledTimes(urls.length);
+
+        // Expects failed scrapResult still contain data fetched from
+        // parseMeta mock
+        expect(
+          call.write.mock.calls.find(
+            ([scrapResult]) => scrapResult.url === scrapFailUrl
+          )
+        ).toMatchInlineSnapshot(`
+Array [
+  Object {
+    "canonical": "canonical from parseMeta",
+    "error": 6,
+    "html": undefined,
+    "status": undefined,
+    "summary": undefined,
+    "title": undefined,
+    "topImageUrl": undefined,
+    "url": "url that triggers scrap fail",
+  },
+]
+`);
         done();
       })
       .catch(err => done.fail(err));
