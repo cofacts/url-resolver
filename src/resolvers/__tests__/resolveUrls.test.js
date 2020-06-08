@@ -45,6 +45,7 @@ describe('resolveUrls', () => {
       .then(() => {
         expect(normalize).toHaveBeenCalledTimes(urls.length);
         expect(unshorten).toHaveBeenCalledTimes(urls.length);
+        expect(parseMeta).toHaveBeenCalledTimes(urls.length);
         expect(scrap).toHaveBeenCalledTimes(0); // No need to scrap
         expect(call.write).toHaveBeenCalledTimes(urls.length);
         done();
