@@ -1,12 +1,21 @@
 const { unfurl } = require('unfurl.js');
 const ScrapResult = require('./ScrapResult');
+const ResolveError = require('./ResolveError');
+// eslint-disable-next-line node/no-unpublished-require
+const { ResolveError: ResolveErrorEnum } = require('./resolve_error_pb');
 
 /**
  * @param {string} url
  * @returns {Promise<ScrapResult>}
  */
 async function parseMeta(url) {
-  const result = await unfurl(new URL(url).toString());
+  let result;
+  try {
+    result = await unfurl(url);
+  } catch (e) {
+    throw new ResolveError(ResolveErrorEnum.UNKNOWN_UNFURL_ERROR, e);
+  }
+
   const get = (...path) =>
     path.reduce(
       (ret, propName) => (typeof ret === 'object' ? ret[propName] : undefined),
