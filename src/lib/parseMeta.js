@@ -23,7 +23,6 @@ async function parseMeta(url) {
     );
 
   return new ScrapResult({
-    url,
     canonical: get('twitter_card', 'url') || get('open_graph', 'url'),
     title:
       get('oEmbed', 'title') ||

@@ -2,7 +2,6 @@ const ScrapResult = require('../ScrapResult');
 
 const getResult = url =>
   new ScrapResult({
-    url,
     title: 't',
     summary: 's',
     canonical: url,

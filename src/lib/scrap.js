@@ -315,7 +315,6 @@ async function scrap(url) {
   }
 
   return new ScrapResult({
-    url,
     canonical,
     title: resultArticle.title,
     summary: resultArticle.textContent ? resultArticle.textContent.trim() : '',

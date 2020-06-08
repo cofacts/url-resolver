@@ -139,9 +139,9 @@ describe('resolveUrls', () => {
     unshorten.mockImplementation(async url => url);
 
     // parseMeta returning incomplete result, but with canonical
-    parseMeta.mockImplementation(url =>
+    parseMeta.mockImplementation(() =>
       Promise.resolve(
-        new ScrapResult({ url, canonical: 'canonical from parseMeta' })
+        new ScrapResult({ canonical: 'canonical from parseMeta' })
       )
     );
 

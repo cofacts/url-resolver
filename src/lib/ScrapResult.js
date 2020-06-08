@@ -48,11 +48,6 @@ class ScrapResult {
   }
 
   /**
-   * @type {string} The original URL from text
-   */
-  url;
-
-  /**
    * @type {string} Canonical URL
    */
   canonical;
