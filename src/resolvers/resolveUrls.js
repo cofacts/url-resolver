@@ -3,6 +3,7 @@ const unshorten = require('../lib/unshorten');
 const normalize = require('../lib/normalize');
 const parseMeta = require('../lib/parseMeta');
 const ResolveError = require('../lib/ResolveError');
+const ScrapResult = require('../lib/ScrapResult');
 
 function resolveUrls(call) {
   const { urls } = call.request;
@@ -10,9 +11,14 @@ function resolveUrls(call) {
     urls.map(async url => {
       let fetchResult;
       try {
+        // Normalize and unshorten URLs, update fetchResult
         const normalized = normalize(url);
-        const unshortened = await unshorten(normalized);
+        fetchResult = new ScrapResult({ canonical: normalized });
 
+        const unshortened = await unshorten(normalized);
+        fetchResult = new ScrapResult({ canonical: unshortened });
+
+        // Fetch info from page
         fetchResult = await parseMeta(unshortened);
 
         if (fetchResult.isIncomplete) {

@@ -58,25 +58,20 @@ describe('resolveUrls', () => {
     const customErrorMsg = 'some error';
 
     normalize.mockImplementation(url => url);
-    unshorten.mockImplementation(async url => url);
+    unshorten.mockImplementation(async url => `unshortened ${url}`);
     parseMeta.mockImplementation(url => {
-      if (url === badUrl) {
+      if (url === `unshortened ${badUrl}`) {
         return Promise.reject(new Error(customErrorMsg));
       }
       return Promise.resolve(scrap.getResult(url));
     });
 
-    const errors = [];
     const urls = ['some youtube url', badUrl, 'the other youtube url'];
     const call = {
       request: {
         urls,
       },
-      write: jest.fn().mockImplementation(res => {
-        if (Object.prototype.hasOwnProperty.call(res, 'error')) {
-          errors.push(res.error);
-        }
-      }),
+      write: jest.fn(),
       end: jest.fn(),
     };
     resolveUrls(call)
@@ -86,8 +81,28 @@ describe('resolveUrls', () => {
         expect(parseMeta).toHaveBeenCalledTimes(urls.length);
         expect(scrap).toHaveBeenCalledTimes(0); // No need to scrap
         expect(call.write).toHaveBeenCalledTimes(urls.length);
-        expect(errors).toHaveLength(1);
-        expect(errors[0]).toBe(undefined); // since this error is not a `ResolveError`
+
+        // Expect:
+        // - "error" key exist with "undefined", since it is not a ResolveError
+        // - canonical URL is still updated by unshortened
+        expect(
+          call.write.mock.calls.find(
+            ([scrapResult]) => scrapResult.url === badUrl
+          )
+        ).toMatchInlineSnapshot(`
+Array [
+  Object {
+    "canonical": "unshortened bad youtube url",
+    "error": undefined,
+    "html": undefined,
+    "status": undefined,
+    "summary": undefined,
+    "title": undefined,
+    "topImageUrl": undefined,
+    "url": "bad youtube url",
+  },
+]
+`);
         done();
       })
       .catch(err => done.fail(err));
@@ -95,9 +110,9 @@ describe('resolveUrls', () => {
 
   it('should resolve multiple urls with some invalid ones and error type ResolveError', done => {
     const badUrl = 'bad youtube url';
-    normalize.mockImplementation(url => url);
+    normalize.mockImplementation(url => `normalized ${url}`);
     unshorten.mockImplementation(async url => {
-      if (url === badUrl) {
+      if (url === `normalized ${badUrl}`) {
         throw new ResolveError(ResolveErrorEnum.NOT_REACHABLE);
       }
 
@@ -105,17 +120,12 @@ describe('resolveUrls', () => {
     });
     parseMeta.mockImplementation(url => Promise.resolve(scrap.getResult(url)));
 
-    const errors = [];
     const urls = ['some youtube url', badUrl, 'the other youtube url'];
     const call = {
       request: {
         urls,
       },
-      write: jest.fn().mockImplementation(res => {
-        if (Object.prototype.hasOwnProperty.call(res, 'error')) {
-          errors.push(res.error);
-        }
-      }),
+      write: jest.fn(),
       end: jest.fn(),
     };
     resolveUrls(call)
@@ -127,8 +137,30 @@ describe('resolveUrls', () => {
         );
         expect(call.write).toHaveBeenCalledTimes(urls.length);
         expect(scrap).toHaveBeenCalledTimes(0); // No need to scrap
-        expect(errors).toHaveLength(1);
-        expect(errors[0]).toBe(ResolveErrorEnum.NOT_REACHABLE);
+
+        // Expect erros populated with ResolveErrorEnum.NOT_REACHABLE,
+        // while canonical still showing normalized URL
+        // Expect:
+        // - "error" key exist with ResolveErrorEnum.NOT_REACHABLE
+        // - canonical URL is still updated by normalize()
+        expect(
+          call.write.mock.calls.find(
+            ([scrapResult]) => scrapResult.url === badUrl
+          )
+        ).toMatchInlineSnapshot(`
+Array [
+  Object {
+    "canonical": "normalized bad youtube url",
+    "error": 3,
+    "html": undefined,
+    "status": undefined,
+    "summary": undefined,
+    "title": undefined,
+    "topImageUrl": undefined,
+    "url": "bad youtube url",
+  },
+]
+`);
         done();
       })
       .catch(err => done.fail(err));
