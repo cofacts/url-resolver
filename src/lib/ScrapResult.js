@@ -26,7 +26,7 @@ class ScrapResult {
 
     TEXT_FIELDS.forEach(field => {
       if (
-        scrapResult[field] &&
+        typeof scrapResult[field] === 'string' &&
         (this[field] || '').length < scrapResult[field].length
       ) {
         this[field] = scrapResult[field];

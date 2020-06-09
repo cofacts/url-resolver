@@ -177,15 +177,20 @@ Array [
       )
     );
 
+    const emptySummaryUrl = 'url that has no summary';
     const scrapFailUrl = 'url that triggers scrap fail';
     scrap.mockImplementation(async url => {
-      if (url === scrapFailUrl) {
-        throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAP_ERROR);
+      switch (url) {
+        case emptySummaryUrl:
+          return { ...scrap.getResult(url), summary: undefined };
+        case scrapFailUrl:
+          throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAP_ERROR);
+        default:
+          return scrap.getResult(url);
       }
-      return scrap.getResult(url);
     });
 
-    const urls = ['some url', 'another url', scrapFailUrl];
+    const urls = ['some url', emptySummaryUrl, scrapFailUrl];
     const call = {
       request: {
         urls,
@@ -200,6 +205,26 @@ Array [
         expect(parseMeta).toHaveBeenCalledTimes(urls.length);
         expect(scrap).toHaveBeenCalledTimes(urls.length);
         expect(call.write).toHaveBeenCalledTimes(urls.length);
+
+        expect(
+          call.write.mock.calls.find(
+            ([scrapResult]) => scrapResult.url === emptySummaryUrl
+          )
+        ).toMatchInlineSnapshot(`
+Array [
+  Object {
+    "canonical": "canonical from parseMeta",
+    "html": undefined,
+    "status": undefined,
+    "successfully_resolved": true,
+    "summary": undefined,
+    "title": "t",
+    "topImageUrl": "t",
+    "top_image_url": "t",
+    "url": "url that has no summary",
+  },
+]
+`);
 
         // Expects failed scrapResult still contain data fetched from
         // parseMeta mock
