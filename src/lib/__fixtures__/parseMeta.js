@@ -563,21 +563,23 @@ exports.META_MAP = {
     favicon: 'https://static.xx.fbcdn.net/rsrc.php/yz/r/KFyVIAWzntM.ico',
   },
   'https://www.facebook.com/groups/perfectwantan/permalink/1672287442782314/': {
-    canonical:
-      'https://www.facebook.com/groups/perfectwantan/permalink/1672287442782314/',
-    title: '陳一元',
-    summary:
-      '各位鄉親朋友們夜安吉祥！\n' +
-      '\n' +
-      '屏東縣警局要求各分局9月22日開始規劃勤務加強取締！\n' +
-      '1-闖紅燈\n' +
-      '2-機車兩段式左轉\n' +
-      '3-違規停車、並排停車\n' +
-      '各位鄉親朋友們請看見緊自己的荷包、稅金已經繳了別再拿去養肥貓囉！',
-    topImageUrl:
-      'https://scontent.ftpe8-1.fna.fbcdn.net/v/t1.0-1/s200x200/62507640_2197806383670510_5135030910181179392_n.jpg?_nc_cat=109&_nc_sid=bbed71&_nc_oc=AQl9D24I-WCdFGog-dWIekb-SsitZLCsPaawtc4Gg6HzPmek3AO88TyGOVSZO8xOdoU&_nc_ht=scontent.ftpe8-1.fna&_nc_tp=7&oh=cd05265ea3d6572f8c064534334bfcdf&oe=5F030AA1',
-    html: undefined,
-    status: undefined,
+    title: '屏東縣萬丹鄉交流地公開社團 | Facebook',
+    description:
+      '屏東縣萬丹鄉交流地有 53,750 位成員。社團文章為⭐️審核制⭐️\n\n加入社團請先「詳細」閱讀版規🙏\n\n此平台是地方上《交流之公共平台 》\n請勿當成是 「個人版面 」使用。\n\n為了讓社團更加美好與和諧\n請遵守以下《版規》\n❤️您給予一分尊敬，將得以相對應之敬重❤️\n\n          *** 社團板規...',
+    open_graph: {
+      title: '陳一元',
+      description:
+        '各位鄉親朋友們夜安吉祥！\n\n屏東縣警局要求各分局9月22日開始規劃勤務加強取締！\n1-闖紅燈\n2-機車兩段式左轉\n3-違規停車、並排停車\n各位鄉親朋友們請看見緊自己的荷包、稅金已經繳了別再拿去養肥貓囉！',
+      images: [
+        {
+          url:
+            'https://scontent.ftpe8-1.fna.fbcdn.net/v/t1.0-1/s200x200/62507640_2197806383670510_5135030910181179392_n.jpg?_nc_cat=109&_nc_sid=bbed71&_nc_oc=AQl9D24I-WCdFGog-dWIekb-SsitZLCsPaawtc4Gg6HzPmek3AO88TyGOVSZO8xOdoU&_nc_ht=scontent.ftpe8-1.fna&_nc_tp=7&oh=cd05265ea3d6572f8c064534334bfcdf&oe=5F030AA1',
+        },
+      ],
+      url:
+        'https://www.facebook.com/groups/perfectwantan/permalink/1672287442782314/',
+    },
+    favicon: 'https://static.xx.fbcdn.net/rsrc.php/yz/r/KFyVIAWzntM.ico',
   },
   'https://www.facebook.com/permalink.php?story_fbid=1715991915099954&id=100000674860070': {
     title:
