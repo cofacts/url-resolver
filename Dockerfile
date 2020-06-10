@@ -1,4 +1,16 @@
-FROM node:12-stretch
+FROM node:12-stretch AS builder
+WORKDIR /srv/www
+
+# build binary in this repository
+
+COPY package.json package-lock.json ./
+RUN npm install
+COPY . .
+RUN npm run compile && npm prune --production
+
+#########################################
+# Prepare runtime environment
+FROM node:12-stretch-slim
 
 # See https://crbug.com/795759
 # RUN apt-get update && apt-get install -yq libgconf-2-4
@@ -28,13 +40,9 @@ RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
     && mkdir -p /home/pptruser/Downloads \
     && chown -R pptruser:pptruser /home/pptruser
 
-# Start installation of code
-
+# Move built repository binary from builder image
 WORKDIR /srv/www
-COPY package.json package-lock.json ./
-RUN npm install
-COPY . .
-RUN npm run compile && npm prune --production
+COPY --from=builder /srv/www .
 
 # Run everything after as non-privileged user.
 USER pptruser
