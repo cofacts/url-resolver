@@ -29,6 +29,9 @@ Install development dependencies
 # After git clone
 $ cd url-resolver
 $ npm install
+
+# Build js binary from proto files
+$ npm run compile
 ```
 
 Start dev server
@@ -36,6 +39,8 @@ Start dev server
 ```bash
 $ npm start
 ```
+
+After editing `proto` files, run `npm run compile` to generate corresponding Javascript binary.
 
 ## Build
 

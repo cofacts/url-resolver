@@ -4,6 +4,7 @@ const fs = require('fs');
 const puppeteer = require('puppeteer');
 const { TimeoutError } = require('puppeteer/Errors');
 const ResolveError = require('./ResolveError');
+const ScrapResult = require('./ScrapResult');
 const rollbar = require('./rollbar');
 
 // eslint-disable-next-line node/no-unpublished-require
@@ -97,22 +98,9 @@ async function stop(page) {
 }
 
 /**
- * Return type for scrapUrls
- * @typedef {Object} ScrapResult
- * @property {string} url The original URL from text
- * @property {string} canonical Canonical URL
- * @property {string} title
- * @property {string} summary
- * @property {string} html
- * @property {string} topImageUrl
- * @property {integer} status fetch status. 0 if no response.
- * @property {string} error
- */
-
-/**
  * Fetches the given url
  * @param {string} url - The URL to scrap
- * @return {Promise<ScrapResult | null>}
+ * @return {Promise<ScrapResult>}
  */
 async function scrap(url) {
   const browser = await browserPromise;
@@ -326,15 +314,14 @@ async function scrap(url) {
     throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAP_ERROR);
   }
 
-  return {
-    url,
+  return new ScrapResult({
     canonical,
     title: resultArticle.title,
     summary: resultArticle.textContent ? resultArticle.textContent.trim() : '',
     topImageUrl,
     html,
     status: response ? response.status() : 0, // when timeout, response would be undefined
-  };
+  });
 }
 
 module.exports = scrap;

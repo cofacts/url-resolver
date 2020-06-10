@@ -1,32 +1,34 @@
-const getVideoId = require('get-video-id');
-
 const scrap = require('../lib/scrap');
 const unshorten = require('../lib/unshorten');
 const normalize = require('../lib/normalize');
-const fetchYoutube = require('../lib/fetchYoutube');
+const parseMeta = require('../lib/parseMeta');
 const ResolveError = require('../lib/ResolveError');
+const ScrapResult = require('../lib/ScrapResult');
 
 function resolveUrls(call) {
   const { urls } = call.request;
   return Promise.all(
     urls.map(async url => {
+      let fetchResult;
       try {
+        // Normalize and unshorten URLs, update fetchResult
         const normalized = normalize(url);
-        const unshortened = await unshorten(normalized);
-        const { id: videoId, service } = getVideoId(unshortened);
+        fetchResult = new ScrapResult({ canonical: normalized });
 
-        let fetcher;
-        if (videoId && service === 'youtube') {
-          fetcher = fetchYoutube(videoId);
-        } else {
-          fetcher = scrap(unshortened);
+        const unshortened = await unshorten(normalized);
+        fetchResult = new ScrapResult({ canonical: unshortened });
+
+        // Fetch info from page
+        fetchResult = await parseMeta(unshortened);
+
+        if (fetchResult.isIncomplete) {
+          fetchResult.merge(await scrap(unshortened));
         }
 
-        const fetchResult = await fetcher;
         call.write({
           ...fetchResult,
           top_image_url: fetchResult.topImageUrl,
-          url,
+          url, // Provide the most original url
           successfully_resolved: true,
         });
       } catch (e) {
@@ -37,6 +39,7 @@ function resolveUrls(call) {
           errMsg = e.returnedError;
         }
         call.write({
+          ...fetchResult, // Still try return available fetch result
           url,
           error: errMsg,
         });

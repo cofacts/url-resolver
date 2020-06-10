@@ -1,7 +1,12 @@
-const getResult = url => ({
-  url,
-  topImageUrl: url,
-});
+const ScrapResult = require('../ScrapResult');
+
+const getResult = url =>
+  new ScrapResult({
+    title: 't',
+    summary: 's',
+    canonical: url,
+    topImageUrl: 't',
+  });
 
 const mod = jest
   .fn()
