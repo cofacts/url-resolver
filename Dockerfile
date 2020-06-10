@@ -1,4 +1,4 @@
-FROM node:12-stretch-slim
+FROM node:12-stretch
 
 # See https://crbug.com/795759
 # RUN apt-get update && apt-get install -yq libgconf-2-4
@@ -32,11 +32,9 @@ RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
 
 WORKDIR /srv/www
 COPY package.json package-lock.json ./
-RUN npm install --production
-
+RUN npm install
 COPY . .
-
-RUN npm run compile
+RUN npm run compile && npm prune --production
 
 # Run everything after as non-privileged user.
 USER pptruser

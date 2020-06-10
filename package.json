@@ -17,7 +17,6 @@
     "dotenv": "^6.0.0",
     "google-protobuf": "^3.9.1",
     "grpc": "^1.11.0",
-    "grpc-tools": "^1.8.0",
     "node-fetch": "^2.2.0",
     "puppeteer": "^2.1.0",
     "rollbar": "^2.5.1",
@@ -30,6 +29,7 @@
     "eslint-config-prettier": "^3.0.1",
     "eslint-plugin-node": "^11.0.0",
     "eslint-plugin-prettier": "^3.0.0",
+    "grpc-tools": "^1.8.0",
     "jest": "^23.6.0",
     "prettier": "^1.14.2"
   },
