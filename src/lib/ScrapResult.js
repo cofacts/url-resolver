@@ -1,6 +1,14 @@
-const TEXT_FIELDS = ['title', 'summary'];
-const META_FIELDS = ['canonical', 'topImageUrl'];
-const OVERRIDE_FIELDS = ['status'];
+// When one of these fields is undefined, the scrap result is considered incomplete.
+const REQUIRED_FIELDS = ['canonical', 'topImageUrl', 'title', 'summary'];
+
+// Merge strategy: use longer when merge()
+const USE_LONGER_FIELDS = ['title', 'summary', 'html'];
+
+// Merge strategy: only update when current field is undefined
+const PREFER_CURRENT_FIELDS = ['canonical', 'topImageUrl'];
+
+// Merge strategy: always use new field
+const PREFER_NEW_FIELDS = ['status'];
 
 class ScrapResult {
   constructor(init) {
@@ -8,23 +16,20 @@ class ScrapResult {
   }
 
   /**
-   * Merge fetched fields with the following rules.
-   * For text fields, choose longer fields.
-   * For meta fields, only update when it does not exist.
-   * For overridden fields, always use value from merged scrapResult.
+   * Merge each field using the strategy defined above.
    * For other fields, they are kept intact.
    *
    * @param {ScrapResult} scrapResult
    * @return {ScrapResult}
    */
   merge(scrapResult) {
-    META_FIELDS.forEach(field => {
+    PREFER_CURRENT_FIELDS.forEach(field => {
       if (typeof this[field] === 'undefined') {
         this[field] = scrapResult[field];
       }
     });
 
-    TEXT_FIELDS.forEach(field => {
+    USE_LONGER_FIELDS.forEach(field => {
       if (
         typeof scrapResult[field] === 'string' &&
         (this[field] || '').length < scrapResult[field].length
@@ -33,18 +38,16 @@ class ScrapResult {
       }
     });
 
-    OVERRIDE_FIELDS.forEach(field => {
+    PREFER_NEW_FIELDS.forEach(field => {
       this[field] = scrapResult[field];
     });
   }
 
   /**
-   * @returns {boolean} If there are any field left not filled in
+   * @returns {boolean} If there are any required field left not filled in
    */
   get isIncomplete() {
-    return [...META_FIELDS, ...TEXT_FIELDS].some(
-      field => typeof this[field] === 'undefined'
-    );
+    return REQUIRED_FIELDS.some(field => typeof this[field] === 'undefined');
   }
 
   /**
@@ -70,7 +73,7 @@ class ScrapResult {
   /**
    * @type {string}
    *
-   * Note: this field is optional.
+   * Note: this field is not required.
    */
   html;
 
