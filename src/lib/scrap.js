@@ -2,7 +2,7 @@
 const path = require('path');
 const fs = require('fs');
 const puppeteer = require('puppeteer');
-const { TimeoutError } = require('puppeteer/Errors');
+const { TimeoutError } = require('puppeteer');
 const ResolveError = require('./ResolveError');
 const ScrapResult = require('./ScrapResult');
 const rollbar = require('./rollbar');
@@ -21,7 +21,8 @@ let isBrowserClosing = false;
  */
 function launchBrowser() {
   browserPromise = puppeteer.launch({
-    ignoreHTTPSErrors: true,
+    acceptInsecureCerts: true,
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -68,16 +69,6 @@ const readabilityJsStr = fs.readFileSync(
   path.join(__dirname, '../vendor/Readability.js'),
   { encoding: 'utf-8' }
 );
-
-/**
- * Executed in puppeteer browser.
- * Don't instrument page.evaluate callbacks, or instrumented vars cov_xxxx will cause error!
- */
-/* eslint-disable no-undef */
-/* istanbul ignore next */
-function executor() {
-  return new Readability(document).parse();
-}
 
 /**
  * Stops page navigation; equal to pressing "stop" button in browser.
@@ -279,13 +270,12 @@ async function scrap(url) {
   // https://github.com/mozilla/readability#usage
   let resultArticle;
   try {
-    resultArticle = await page.evaluate(`
-      (function(){
-        ${readabilityJsStr}
-        ${executor}
-        return executor();
-      }())
-    `);
+    resultArticle = await page.evaluate(readabilityJsStr => {
+      /* eslint-disable no-eval, no-undef */
+      eval(readabilityJsStr);
+      return new Readability(document).parse();
+      /* eslint-enable no-eval, no-undef */
+    }, readabilityJsStr);
   } catch (e) {
     rollbar.error(e, '[scrap] executor error', { url });
   }
