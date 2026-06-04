@@ -1,8 +1,8 @@
 /* eslint-env browser */
 const path = require('path');
 const fs = require('fs');
-const puppeteer = require('puppeteer');
 const { TimeoutError } = require('puppeteer');
+const launchOrConnect = require('./launchOrConnect');
 const ResolveError = require('./ResolveError');
 const ScrapResult = require('./ScrapResult');
 const rollbar = require('./rollbar');
@@ -20,16 +20,7 @@ let isBrowserClosing = false;
  * Launch Google Chrome and sets browserPromise
  */
 function launchBrowser() {
-  browserPromise = puppeteer.launch({
-    acceptInsecureCerts: true,
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage', // https://github.com/puppeteer/puppeteer/issues/1321#issuecomment-378361236
-    ],
-    // devtools: true,
-  });
+  browserPromise = launchOrConnect();
   browserPromise.then(browser => {
     // eslint-disable-next-line no-console
     console.log(`Browser launched successfully.`);
