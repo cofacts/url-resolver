@@ -34,7 +34,7 @@
     "prettier": "^1.14.2"
   },
   "engines": {
-    "node": ">=12.0.0"
+    "node": ">=24"
   },
   "jest": {
     "clearMocks": true
