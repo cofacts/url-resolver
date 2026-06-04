@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const grpc = require('grpc');
+const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
 const { resolveUrls } = require('./src/resolvers/resolveUrls');
 const { getBrowserStats } = require('./src/resolvers/browser');
@@ -40,5 +40,14 @@ server.addService(urlResolverProto.UrlResolver.service, {
 server.addService(browserProto.BrowserStats.service, {
   GetStats: getBrowserStats,
 });
-server.bind(`0.0.0.0:${PORT}`, grpc.ServerCredentials.createInsecure());
-server.start();
+server.bindAsync(
+  `0.0.0.0:${PORT}`,
+  grpc.ServerCredentials.createInsecure(),
+  (err, port) => {
+    if (err) {
+      throw new Error(`gRPC bind failed: ${err.message}`);
+    }
+    // eslint-disable-next-line no-console
+    console.log(`gRPC server listening on ${port}`);
+  }
+);

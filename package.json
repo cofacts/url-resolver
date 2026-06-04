@@ -13,10 +13,10 @@
   "author": "MrOrz",
   "license": "MIT",
   "dependencies": {
-    "@grpc/proto-loader": "^0.1.0",
+    "@grpc/grpc-js": "^1.14.0",
+    "@grpc/proto-loader": "^0.7.0",
     "dotenv": "^6.0.0",
     "google-protobuf": "^3.9.1",
-    "grpc": "^1.11.0",
     "node-fetch": "^2.2.0",
     "puppeteer": "^2.1.0",
     "rollbar": "^2.5.1",
