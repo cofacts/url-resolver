@@ -13,6 +13,14 @@ const { ResolveError: ResolveErrorEnum } = require('./resolve_error_pb');
 const FETCHING_TIMEOUT = 5000;
 const PROCESSING_TIMEOUT = 1000;
 
+const SCRAP_BLOCK_RESOURCES = (process.env.SCRAP_BLOCK_RESOURCES === undefined
+  ? 'image,media,font'
+  : process.env.SCRAP_BLOCK_RESOURCES
+)
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
 let browserPromise;
 let isBrowserClosing = false;
 
@@ -87,6 +95,17 @@ async function stop(page) {
 async function scrap(url) {
   const browser = await browserPromise;
   const page = await browser.newPage();
+
+  if (SCRAP_BLOCK_RESOURCES.length > 0) {
+    await page.setRequestInterception(true);
+    page.on('request', req => {
+      if (SCRAP_BLOCK_RESOURCES.includes(req.resourceType())) {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
+  }
 
   // Automaticaly accept all alert() or confirm()
   page.on('dialog', async dialog => {
@@ -306,6 +325,7 @@ async function scrap(url) {
 }
 
 module.exports = scrap;
+module.exports.SCRAP_BLOCK_RESOURCES = SCRAP_BLOCK_RESOURCES;
 
 scrap.getBrowserPromise = () => browserPromise;
 
