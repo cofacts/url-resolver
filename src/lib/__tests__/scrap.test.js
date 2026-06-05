@@ -72,8 +72,8 @@ describe('scrap request interception', () => {
     ['image', 'media', 'font'].forEach(type => {
       const req = {
         resourceType: () => type,
-        abort: jest.fn(),
-        continue: jest.fn(),
+        abort: jest.fn().mockResolvedValue(),
+        continue: jest.fn().mockResolvedValue(),
       };
       requestHandler(req);
       expect(req.abort).toHaveBeenCalledTimes(1);
@@ -83,8 +83,8 @@ describe('scrap request interception', () => {
     ['document', 'stylesheet', 'script', 'xhr', 'fetch'].forEach(type => {
       const req = {
         resourceType: () => type,
-        abort: jest.fn(),
-        continue: jest.fn(),
+        abort: jest.fn().mockResolvedValue(),
+        continue: jest.fn().mockResolvedValue(),
       };
       requestHandler(req);
       expect(req.continue).toHaveBeenCalledTimes(1);
@@ -101,16 +101,16 @@ describe('scrap request interception', () => {
 
     const reqImage = {
       resourceType: () => 'image',
-      abort: jest.fn(),
-      continue: jest.fn(),
+      abort: jest.fn().mockResolvedValue(),
+      continue: jest.fn().mockResolvedValue(),
     };
     requestHandler(reqImage);
     expect(reqImage.continue).toHaveBeenCalled();
 
     const reqScript = {
       resourceType: () => 'script',
-      abort: jest.fn(),
-      continue: jest.fn(),
+      abort: jest.fn().mockResolvedValue(),
+      continue: jest.fn().mockResolvedValue(),
     };
     requestHandler(reqScript);
     expect(reqScript.abort).toHaveBeenCalled();
@@ -123,5 +123,26 @@ describe('scrap request interception', () => {
 
     expect(mockPage.setRequestInterception).not.toHaveBeenCalled();
     expect(requestHandler).toBeUndefined();
+  });
+
+  it('swallows abort/continue rejection when page closes mid-flight', async () => {
+    const scrap = require('../scrap');
+    await scrap('https://example.test/');
+
+    const rejectedAbort = {
+      resourceType: () => 'image',
+      abort: jest.fn().mockRejectedValue(new Error('Target closed')),
+      continue: jest.fn().mockResolvedValue(),
+    };
+    const rejectedContinue = {
+      resourceType: () => 'document',
+      abort: jest.fn().mockResolvedValue(),
+      continue: jest.fn().mockRejectedValue(new Error('Target closed')),
+    };
+
+    expect(() => requestHandler(rejectedAbort)).not.toThrow();
+    expect(() => requestHandler(rejectedContinue)).not.toThrow();
+
+    await new Promise(r => setImmediate(r));
   });
 });

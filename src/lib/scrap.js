@@ -99,10 +99,11 @@ async function scrap(url) {
   if (SCRAP_BLOCK_RESOURCES.length > 0) {
     await page.setRequestInterception(true);
     page.on('request', req => {
+      // abort()/continue() reject if the page closes mid-flight; swallow.
       if (SCRAP_BLOCK_RESOURCES.includes(req.resourceType())) {
-        req.abort();
+        req.abort().catch(() => {});
       } else {
-        req.continue();
+        req.continue().catch(() => {});
       }
     });
   }
