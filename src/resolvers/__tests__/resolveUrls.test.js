@@ -251,21 +251,28 @@ Array [
       .catch(err => done.fail(err));
   });
 
-  it('caps concurrent scrap operations at SCRAP_MAX_CONCURRENCY default 3', done => {
+  it('caps concurrent scrap() at SCRAP_MAX_CONCURRENCY without limiting parseMeta', done => {
     normalize.mockImplementation(url => url);
     unshorten.mockImplementation(async url => url);
-    parseMeta.mockImplementation(() =>
-      Promise.resolve(new ScrapResult({ canonical: 'partial' }))
-    );
 
-    let active = 0;
-    let max = 0;
+    let parseMetaActive = 0;
+    let parseMetaMax = 0;
+    parseMeta.mockImplementation(async () => {
+      parseMetaActive++;
+      if (parseMetaActive > parseMetaMax) parseMetaMax = parseMetaActive;
+      await new Promise(r => setImmediate(r));
+      parseMetaActive--;
+      return new ScrapResult({ canonical: 'partial' });
+    });
+
+    let scrapActive = 0;
+    let scrapMax = 0;
     scrap.mockImplementation(async url => {
-      active++;
-      if (active > max) max = active;
+      scrapActive++;
+      if (scrapActive > scrapMax) scrapMax = scrapActive;
       await new Promise(r => setImmediate(r));
       await new Promise(r => setImmediate(r));
-      active--;
+      scrapActive--;
       return scrap.getResult(url);
     });
 
@@ -278,7 +285,8 @@ Array [
 
     resolveUrls(call)
       .then(() => {
-        expect(max).toBe(3);
+        expect(scrapMax).toBe(3);
+        expect(parseMetaMax).toBe(urls.length);
         expect(scrap).toHaveBeenCalledTimes(urls.length);
         expect(call.write).toHaveBeenCalledTimes(urls.length);
         done();
