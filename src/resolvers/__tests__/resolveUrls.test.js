@@ -250,4 +250,39 @@ Array [
       })
       .catch(err => done.fail(err));
   });
+
+  it('caps concurrent scrap operations at SCRAP_MAX_CONCURRENCY default 3', done => {
+    normalize.mockImplementation(url => url);
+    unshorten.mockImplementation(async url => url);
+    parseMeta.mockImplementation(() =>
+      Promise.resolve(new ScrapResult({ canonical: 'partial' }))
+    );
+
+    let active = 0;
+    let max = 0;
+    scrap.mockImplementation(async url => {
+      active++;
+      if (active > max) max = active;
+      await new Promise(r => setImmediate(r));
+      await new Promise(r => setImmediate(r));
+      active--;
+      return scrap.getResult(url);
+    });
+
+    const urls = ['u1', 'u2', 'u3', 'u4', 'u5'];
+    const call = {
+      request: { urls },
+      write: jest.fn(),
+      end: jest.fn(),
+    };
+
+    resolveUrls(call)
+      .then(() => {
+        expect(max).toBe(3);
+        expect(scrap).toHaveBeenCalledTimes(urls.length);
+        expect(call.write).toHaveBeenCalledTimes(urls.length);
+        done();
+      })
+      .catch(err => done.fail(err));
+  });
 });
