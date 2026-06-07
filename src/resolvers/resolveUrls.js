@@ -3,6 +3,7 @@ const scrap = require('../lib/scrap');
 const unshorten = require('../lib/unshorten');
 const normalize = require('../lib/normalize');
 const parseMeta = require('../lib/parseMeta');
+const extractStatic = require('../lib/extractStatic');
 const ResolveError = require('../lib/ResolveError');
 const ScrapResult = require('../lib/ScrapResult');
 
@@ -44,7 +45,12 @@ function resolveUrls(call) {
           if (isTerminalHttpError(finalStatus)) {
             fetchResult.status = finalStatus;
           } else {
-            fetchResult.merge(await limit(() => scrap(unshortened)));
+            const staticResult = await extractStatic(unshortened);
+            if (staticResult) fetchResult.merge(staticResult);
+
+            if (fetchResult.isIncomplete) {
+              fetchResult.merge(await limit(() => scrap(unshortened)));
+            }
           }
         }
 

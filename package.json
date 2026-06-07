@@ -15,8 +15,10 @@
   "dependencies": {
     "@grpc/grpc-js": "^1.14.0",
     "@grpc/proto-loader": "^0.7.0",
+    "@mozilla/readability": "^0.6.0",
     "dotenv": "^6.0.0",
     "google-protobuf": "^3.9.1",
+    "jsdom": "^29.1.1",
     "node-fetch": "^2.2.0",
     "p-limit": "^3.1.0",
     "puppeteer": "^24.10.0",

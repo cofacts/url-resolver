@@ -2,6 +2,7 @@ jest.mock('../../lib/unshorten');
 jest.mock('../../lib/normalize');
 jest.mock('../../lib/parseMeta');
 jest.mock('../../lib/scrap');
+jest.mock('../../lib/extractStatic', () => jest.fn());
 
 const ScrapResult = require('../../lib/ScrapResult');
 const unshorten = require('../../lib/unshorten');
