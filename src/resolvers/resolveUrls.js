@@ -22,7 +22,7 @@ function resolveUrls(call) {
         const normalized = normalize(url);
         fetchResult = new ScrapResult({ canonical: normalized });
 
-        const unshortened = await unshorten(normalized);
+        const { url: unshortened } = await unshorten(normalized);
         fetchResult = new ScrapResult({ canonical: unshortened });
 
         // Fetch info from page

@@ -26,7 +26,7 @@ describe('resolveUrls', () => {
 
   it('should resolve multiple valid urls', done => {
     normalize.mockImplementation(url => url);
-    unshorten.mockImplementation(async url => url);
+    unshorten.mockImplementation(async url => ({ url, status: 200 }));
     parseMeta.mockImplementation(url => Promise.resolve(scrap.getResult(url)));
 
     const urls = [
@@ -58,7 +58,10 @@ describe('resolveUrls', () => {
     const customErrorMsg = 'some error';
 
     normalize.mockImplementation(url => url);
-    unshorten.mockImplementation(async url => `unshortened ${url}`);
+    unshorten.mockImplementation(async url => ({
+      url: `unshortened ${url}`,
+      status: 200,
+    }));
     parseMeta.mockImplementation(url => {
       if (url === `unshortened ${badUrl}`) {
         return Promise.reject(new Error(customErrorMsg));
@@ -116,7 +119,7 @@ Array [
         throw new ResolveError(ResolveErrorEnum.NOT_REACHABLE);
       }
 
-      return url;
+      return { url, status: 200 };
     });
     parseMeta.mockImplementation(url => Promise.resolve(scrap.getResult(url)));
 
@@ -168,7 +171,7 @@ Array [
 
   it('should resolve multiple urls with incomplete meta', done => {
     normalize.mockImplementation(url => url);
-    unshorten.mockImplementation(async url => url);
+    unshorten.mockImplementation(async url => ({ url, status: 200 }));
 
     // parseMeta returning incomplete result, but with canonical
     parseMeta.mockImplementation(() =>
@@ -253,7 +256,7 @@ Array [
 
   it('caps concurrent scrap() at SCRAP_MAX_CONCURRENCY without limiting parseMeta', done => {
     normalize.mockImplementation(url => url);
-    unshorten.mockImplementation(async url => url);
+    unshorten.mockImplementation(async url => ({ url, status: 200 }));
 
     let parseMetaActive = 0;
     let parseMetaMax = 0;
