@@ -1,0 +1,20 @@
+# Sample URLs for the extraction bench.
+# One URL per line. Lines starting with '#' are comments.
+#
+# Categories:
+#   - docs / SSR sites: static path should work cleanly.
+#   - news / SSR sites: typical Cofacts traffic; static path should work.
+#   - SPA / social: static path is expected to miss; puppeteer needed.
+#
+# Replace this with your real URL set (e.g. a Cofacts dataset dump) when
+# benchmarking for production tuning.
+
+# docs (SSR + clean Markdown)
+https://docs.anthropic.com/en/docs/intro
+https://stripe.com
+
+# Vanilla SSR
+https://example.com/
+
+# SPA-heavy (puppeteer territory)
+https://www.threads.net/
