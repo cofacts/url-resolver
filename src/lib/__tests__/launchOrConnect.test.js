@@ -51,7 +51,7 @@ describe('launchOrConnect', () => {
     expect(puppeteerCore.connect).toHaveBeenCalledTimes(1);
     const arg = puppeteerCore.connect.mock.calls[0][0];
     expect(arg.browserWSEndpoint).toBe(
-      'wss://api.cloudflare.com/client/v4/accounts/acc123/browser-rendering/devtools/browser?keep_alive=600000'
+      'wss://api.cloudflare.com/client/v4/accounts/acc123/browser-rendering/devtools/browser?keep_alive=60000'
     );
     expect(arg.headers).toEqual({ Authorization: 'Bearer token456' });
     expect(puppeteer.launch).not.toHaveBeenCalled();
@@ -62,13 +62,13 @@ describe('launchOrConnect', () => {
     process.env.BROWSER_BACKEND = 'cloudflare';
     process.env.CLOUDFLARE_ACCOUNT_ID = 'acc';
     process.env.CLOUDFLARE_API_TOKEN = 'tok';
-    process.env.CLOUDFLARE_KEEP_ALIVE_MS = '60000';
+    process.env.CLOUDFLARE_KEEP_ALIVE_MS = '600000';
     puppeteerCore.connect.mockReturnValue('remote-browser');
 
     launchOrConnect();
 
     const arg = puppeteerCore.connect.mock.calls[0][0];
-    expect(arg.browserWSEndpoint).toContain('keep_alive=60000');
+    expect(arg.browserWSEndpoint).toContain('keep_alive=600000');
   });
 
   it('throws if BROWSER_BACKEND=cloudflare but credentials missing', () => {
