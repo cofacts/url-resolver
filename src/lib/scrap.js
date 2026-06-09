@@ -24,45 +24,67 @@ const SCRAP_BLOCK_RESOURCES = (process.env.SCRAP_BLOCK_RESOURCES === undefined
 let browserPromise;
 let isBrowserClosing = false;
 
+const isCloudflare = (process.env.BROWSER_BACKEND || 'local') === 'cloudflare';
+
 /**
  * Launch Google Chrome and sets browserPromise
  */
 function launchBrowser() {
   browserPromise = launchOrConnect();
-  browserPromise.then(browser => {
-    // eslint-disable-next-line no-console
-    console.log(`Browser launched successfully.`);
+  browserPromise
+    .then(browser => {
+      // eslint-disable-next-line no-console
+      console.log(`Browser launched successfully.`);
 
-    // Some page may use window.open() to open extra pages.
-    // We should close them when such page is detected.
-    //
-    browser.on('targetcreated', async target => {
-      const opener = target.opener();
-      if (opener) {
-        // eslint-disable-next-line no-console
-        console.info(
-          `[targetcreated] Extra page "${target.url()}" opened by "${opener.url()}". Closing.`
-        );
+      // Some page may use window.open() to open extra pages.
+      // We should close them when such page is detected.
+      //
+      browser.on('targetcreated', async target => {
+        const opener = target.opener();
+        if (opener) {
+          // eslint-disable-next-line no-console
+          console.info(
+            `[targetcreated] Extra page "${target.url()}" opened by "${opener.url()}". Closing.`
+          );
 
-        const page = await target.page();
-        if (page) page.close();
-      }
+          const page = await target.page();
+          if (page) page.close();
+        }
+      });
+
+      browser.on('disconnected', () => {
+        // Ignore the case when close() is invoked
+        if (isBrowserClosing) return;
+
+        if (isCloudflare) {
+          // Cloudflare auto-closes the remote session after keep_alive
+          // inactivity. Reset so the next scrap() reconnects on demand
+          // instead of burning a fresh session per idle timeout cycle.
+          browserPromise = undefined;
+          return;
+        }
+
+        // Local Chrome sometimes crashes; reconnect eagerly.
+        // https://github.com/cofacts/url-resolver/issues/9
+        rollbar.warn('Puppeteer disconnected from Chrome');
+        launchBrowser();
+      });
+    })
+    .catch(err => {
+      rollbar.error(err, '[scrap] launchOrConnect failed');
+      browserPromise = undefined;
     });
-
-    // Google Chrome sometimes crashes, needs re-launch
-    // https://github.com/cofacts/url-resolver/issues/9
-    //
-    browser.on('disconnected', () => {
-      // Ignore the case when close() is invoked
-      if (isBrowserClosing) return;
-
-      rollbar.warn('Puppeteer disconnected from Chrome');
-      launchBrowser();
-    });
-  });
 }
 
-launchBrowser();
+function getBrowser() {
+  if (!browserPromise) launchBrowser();
+  return browserPromise;
+}
+
+// Local backend eagerly launches so the first request does not pay chromium
+// startup latency. Cloudflare backend connects lazily on demand because each
+// session is billed and auto-closes on idle.
+if (!isCloudflare) launchBrowser();
 
 const readabilityJsStr = fs.readFileSync(
   path.join(__dirname, '../vendor/Readability.js'),
@@ -93,7 +115,7 @@ async function stop(page) {
  * @return {Promise<ScrapResult>}
  */
 async function scrap(url) {
-  const browser = await browserPromise;
+  const browser = await getBrowser();
   const page = await browser.newPage();
 
   if (SCRAP_BLOCK_RESOURCES.length > 0) {
@@ -336,6 +358,7 @@ scrap.getBrowserPromise = () => browserPromise;
  */
 scrap.closeBrowser = async () => {
   isBrowserClosing = true;
+  if (!browserPromise) return;
   const browser = await browserPromise;
   browser.close();
 };
