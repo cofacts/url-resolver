@@ -3,6 +3,7 @@ const scrap = require('../lib/scrap');
 const unshorten = require('../lib/unshorten');
 const normalize = require('../lib/normalize');
 const parseMeta = require('../lib/parseMeta');
+const extractStatic = require('../lib/extractStatic');
 const ResolveError = require('../lib/ResolveError');
 const ScrapResult = require('../lib/ScrapResult');
 
@@ -11,6 +12,16 @@ const SCRAP_MAX_CONCURRENCY =
 
 // Server-wide cap on concurrent scrap operations to bound puppeteer memory.
 const limit = pLimit(SCRAP_MAX_CONCURRENCY);
+
+function isTerminalHttpError(status) {
+  return (
+    status >= 500 ||
+    status === 401 ||
+    status === 403 ||
+    status === 410 ||
+    status === 451
+  );
+}
 
 function resolveUrls(call) {
   const { urls } = call.request;
@@ -22,14 +33,25 @@ function resolveUrls(call) {
         const normalized = normalize(url);
         fetchResult = new ScrapResult({ canonical: normalized });
 
-        const unshortened = await unshorten(normalized);
+        const { url: unshortened, status: finalStatus } = await unshorten(
+          normalized
+        );
         fetchResult = new ScrapResult({ canonical: unshortened });
 
         // Fetch info from page
         fetchResult = await parseMeta(unshortened);
 
         if (fetchResult.isIncomplete) {
-          fetchResult.merge(await limit(() => scrap(unshortened)));
+          if (isTerminalHttpError(finalStatus)) {
+            fetchResult.status = finalStatus;
+          } else {
+            const staticResult = await extractStatic(unshortened);
+            if (staticResult) fetchResult.merge(staticResult);
+
+            if (fetchResult.isIncomplete) {
+              fetchResult.merge(await limit(() => scrap(unshortened)));
+            }
+          }
         }
 
         call.write({
