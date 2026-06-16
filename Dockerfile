@@ -56,7 +56,7 @@ RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
 
 # Move built repository binary from builder image
 WORKDIR /srv/www
-COPY --from=builder --chown=pptruser:pptruser /srv/www .
+COPY --from=builder /srv/www .
 
 # Run everything after as non-privileged user.
 USER pptruser
