@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/cofacts/url-resolver.svg?branch=master)](https://travis-ci.org/cofacts/url-resolver) [![Coverage Status](https://coveralls.io/repos/github/cofacts/url-resolver/badge.svg?branch=master)](https://coveralls.io/github/cofacts/url-resolver?branch=master)
 
-A gRPC service that scraps the specified URL and returns scrapped result and summary extracted by
+A gRPC service that scrapes the specified URL and returns scraped result and summary extracted by
 [Readability.js]
 
 ## Usage
@@ -81,11 +81,11 @@ $ docker build -t cofacts/url-resolver:latest .
 
 ## Resource limits
 
-Two env vars bound puppeteer memory at scrap time. Both are optional.
+Two env vars bound puppeteer memory at scrape time. Both are optional.
 
 | Variable | Default | Description |
 |---|---|---|
-| `SCRAP_MAX_CONCURRENCY` | `3` | Maximum concurrent `scrap()` operations across all gRPC calls. Each in-flight scrap holds one puppeteer page (image, JS heap, network sockets). Lower this if the server OOMs; raise it if tail latency dominates and there is RAM headroom. |
-| `SCRAP_BLOCK_RESOURCES` | `image,media,font` | Comma-separated [puppeteer resourceType](https://pptr.dev/api/puppeteer.httprequest.resourcetype) list aborted before they hit the wire. Set to empty string to load every resource. The default leaves `document`, `stylesheet`, `script`, and `xhr` intact, so Readability.js sees the same DOM. |
+| `SCRAPE_MAX_CONCURRENCY` | `3` | Maximum concurrent `scrape()` operations across all gRPC calls. Each in-flight scrape holds one puppeteer page (image, JS heap, network sockets). Lower this if the server OOMs; raise it if tail latency dominates and there is RAM headroom. |
+| `SCRAPE_BLOCK_RESOURCES` | `image,media,font` | Comma-separated [puppeteer resourceType](https://pptr.dev/api/puppeteer.httprequest.resourcetype) list aborted before they hit the wire. Set to empty string to load every resource. The default leaves `document`, `stylesheet`, `script`, and `xhr` intact, so Readability.js sees the same DOM. |
 
 `og:image` is read from the meta tag in HTML, not from a loaded image, so the default block list does not affect `topImageUrl` for sites that expose Open Graph metadata. Sites without `og:image` fall back to scanning `<img>` tags by rendered size; with image loading blocked, all images report `0x0`, so the fallback returns the first `<img>` instead of the largest.

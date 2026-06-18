@@ -17,7 +17,7 @@ function buildCloudflareConnectOptions() {
   }
   // keep_alive sets the inactivity window before Cloudflare closes the remote
   // session. Default 60000 ms (matches CF default); cap is 600000 ms (10 min).
-  // Wider window = more session reuse across scraps but longer billed idle
+  // Wider window = more session reuse across scrapes but longer billed idle
   // tail after the last request, since the open session keeps consuming
   // browser-hours until it times out.
   // https://developers.cloudflare.com/browser-run/limits/

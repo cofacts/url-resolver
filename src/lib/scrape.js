@@ -4,7 +4,7 @@ const fs = require('fs');
 const { TimeoutError } = require('puppeteer');
 const launchOrConnect = require('./launchOrConnect');
 const ResolveError = require('./ResolveError');
-const ScrapResult = require('./ScrapResult');
+const ScrapeResult = require('./ScrapeResult');
 const rollbar = require('./rollbar');
 
 // eslint-disable-next-line node/no-unpublished-require
@@ -13,9 +13,9 @@ const { ResolveError: ResolveErrorEnum } = require('./resolve_error_pb');
 const FETCHING_TIMEOUT = 5000;
 const PROCESSING_TIMEOUT = 1000;
 
-const SCRAP_BLOCK_RESOURCES = (process.env.SCRAP_BLOCK_RESOURCES === undefined
+const SCRAPE_BLOCK_RESOURCES = (process.env.SCRAPE_BLOCK_RESOURCES === undefined
   ? 'image,media,font'
-  : process.env.SCRAP_BLOCK_RESOURCES
+  : process.env.SCRAPE_BLOCK_RESOURCES
 )
   .split(',')
   .map(s => s.trim())
@@ -58,7 +58,7 @@ function launchBrowser() {
 
         if (isCloudflare) {
           // Cloudflare auto-closes the remote session after keep_alive
-          // inactivity. Reset so the next scrap() reconnects on demand
+          // inactivity. Reset so the next scrape() reconnects on demand
           // instead of burning a fresh session per idle timeout cycle.
           browserPromise = undefined;
           return;
@@ -71,7 +71,7 @@ function launchBrowser() {
       });
     })
     .catch(err => {
-      rollbar.error(err, '[scrap] launchOrConnect failed');
+      rollbar.error(err, '[scrape] launchOrConnect failed');
       browserPromise = undefined;
     });
 }
@@ -111,18 +111,18 @@ async function stop(page) {
 
 /**
  * Fetches the given url
- * @param {string} url - The URL to scrap
- * @return {Promise<ScrapResult>}
+ * @param {string} url - The URL to scrape
+ * @return {Promise<ScrapeResult>}
  */
-async function scrap(url) {
+async function scrape(url) {
   const browser = await getBrowser();
   const page = await browser.newPage();
 
-  if (SCRAP_BLOCK_RESOURCES.length > 0) {
+  if (SCRAPE_BLOCK_RESOURCES.length > 0) {
     await page.setRequestInterception(true);
     page.on('request', req => {
       // abort()/continue() reject if the page closes mid-flight; swallow.
-      if (SCRAP_BLOCK_RESOURCES.includes(req.resourceType())) {
+      if (SCRAPE_BLOCK_RESOURCES.includes(req.resourceType())) {
         req.abort().catch(() => {});
       } else {
         req.continue().catch(() => {});
@@ -166,11 +166,11 @@ async function scrap(url) {
         throw new ResolveError(ResolveErrorEnum.UNSUPPORTED, e);
 
       default:
-        rollbar.error(e, '[scrap] page.goto() Error', { url });
+        rollbar.error(e, '[scrape] page.goto() Error', { url });
 
         // unkown error, directly return
         await page.close();
-        throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAP_ERROR, e);
+        throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR, e);
     }
   }
   if (response) {
@@ -196,7 +196,7 @@ async function scrap(url) {
   } catch (e) {
     // Maybe context destroyed error (caused by JS / HTML redirects)
     await page.close();
-    throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAP_ERROR, e);
+    throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR, e);
   }
 
   // eslint-disable-next-line no-console
@@ -217,7 +217,7 @@ async function scrap(url) {
   } catch (e) {
     if (!(e instanceof TimeoutError)) {
       await page.close();
-      throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAP_ERROR, e);
+      throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR, e);
     }
   }
 
@@ -234,7 +234,7 @@ async function scrap(url) {
   } catch (e) {
     if (!(e instanceof TimeoutError)) {
       await page.close();
-      throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAP_ERROR, e);
+      throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR, e);
     }
   }
 
@@ -258,7 +258,7 @@ async function scrap(url) {
   } catch (e) {
     // Maybe context destroyed error (caused by JS / HTML redirects)
     await page.close();
-    throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAP_ERROR, e);
+    throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR, e);
   }
 
   // For URLs that cannot navigate properly
@@ -296,7 +296,7 @@ async function scrap(url) {
   } catch (e) {
     // Cannot get top image URL is not a big deal, just log error
 
-    rollbar.error(e, '[scrap] topImageUrl error', { url });
+    rollbar.error(e, '[scrape] topImageUrl error', { url });
   }
 
   // Returns article object by readibility.parse()
@@ -310,7 +310,7 @@ async function scrap(url) {
       /* eslint-enable no-eval, no-undef */
     }, readabilityJsStr);
   } catch (e) {
-    rollbar.error(e, '[scrap] executor error', { url });
+    rollbar.error(e, '[scrape] executor error', { url });
   }
 
   // Try a second time, using simpler approach
@@ -326,7 +326,7 @@ async function scrap(url) {
         };
       });
     } catch (e) {
-      rollbar.error(e, '[scrap] executor-fallback', { url });
+      rollbar.error(e, '[scrape] executor-fallback', { url });
     }
   }
 
@@ -334,10 +334,10 @@ async function scrap(url) {
 
   // If we still cannot get resultArticle, throw
   if (!resultArticle) {
-    throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAP_ERROR);
+    throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR);
   }
 
-  return new ScrapResult({
+  return new ScrapeResult({
     canonical,
     title: resultArticle.title,
     summary: resultArticle.textContent ? resultArticle.textContent.trim() : '',
@@ -347,16 +347,16 @@ async function scrap(url) {
   });
 }
 
-module.exports = scrap;
-module.exports.SCRAP_BLOCK_RESOURCES = SCRAP_BLOCK_RESOURCES;
+module.exports = scrape;
+module.exports.SCRAPE_BLOCK_RESOURCES = SCRAPE_BLOCK_RESOURCES;
 
-scrap.getBrowserPromise = () => browserPromise;
+scrape.getBrowserPromise = () => browserPromise;
 
 /**
  * Closing browser. After closing, the url-resolver can never be used again.
  * Should only use after unit tests.
  */
-scrap.closeBrowser = async () => {
+scrape.closeBrowser = async () => {
   isBrowserClosing = true;
   if (!browserPromise) return;
   const browser = await browserPromise;

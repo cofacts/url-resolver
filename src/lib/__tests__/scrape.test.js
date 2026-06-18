@@ -10,7 +10,7 @@ jest.mock('puppeteer-core', () => ({ connect: jest.fn() }), { virtual: true });
 jest.mock('../launchOrConnect', () => jest.fn());
 jest.mock('../rollbar', () => ({ warn: jest.fn(), error: jest.fn() }));
 
-describe('scrap request interception', () => {
+describe('scrape request interception', () => {
   const ORIGINAL_ENV = process.env;
   let launchOrConnect;
   let mockPage;
@@ -52,7 +52,7 @@ describe('scrap request interception', () => {
   beforeEach(() => {
     jest.resetModules();
     process.env = { ...ORIGINAL_ENV };
-    delete process.env.SCRAP_BLOCK_RESOURCES;
+    delete process.env.SCRAPE_BLOCK_RESOURCES;
     setupMocks();
     launchOrConnect = require('../launchOrConnect');
     launchOrConnect.mockReturnValue(Promise.resolve(mockBrowser));
@@ -63,8 +63,8 @@ describe('scrap request interception', () => {
   });
 
   it('blocks image, media, font by default and continues other types', async () => {
-    const scrap = require('../scrap');
-    await scrap('https://example.test/');
+    const scrape = require('../scrape');
+    await scrape('https://example.test/');
 
     expect(mockPage.setRequestInterception).toHaveBeenCalledWith(true);
     expect(requestHandler).toBeDefined();
@@ -92,10 +92,10 @@ describe('scrap request interception', () => {
     });
   });
 
-  it('honors SCRAP_BLOCK_RESOURCES override', async () => {
-    process.env.SCRAP_BLOCK_RESOURCES = 'script, xhr';
-    const scrap = require('../scrap');
-    await scrap('https://example.test/');
+  it('honors SCRAPE_BLOCK_RESOURCES override', async () => {
+    process.env.SCRAPE_BLOCK_RESOURCES = 'script, xhr';
+    const scrape = require('../scrape');
+    await scrape('https://example.test/');
 
     expect(mockPage.setRequestInterception).toHaveBeenCalledWith(true);
 
@@ -116,18 +116,18 @@ describe('scrap request interception', () => {
     expect(reqScript.abort).toHaveBeenCalled();
   });
 
-  it('skips interception when SCRAP_BLOCK_RESOURCES is empty', async () => {
-    process.env.SCRAP_BLOCK_RESOURCES = '';
-    const scrap = require('../scrap');
-    await scrap('https://example.test/');
+  it('skips interception when SCRAPE_BLOCK_RESOURCES is empty', async () => {
+    process.env.SCRAPE_BLOCK_RESOURCES = '';
+    const scrape = require('../scrape');
+    await scrape('https://example.test/');
 
     expect(mockPage.setRequestInterception).not.toHaveBeenCalled();
     expect(requestHandler).toBeUndefined();
   });
 
   it('swallows abort/continue rejection when page closes mid-flight', async () => {
-    const scrap = require('../scrap');
-    await scrap('https://example.test/');
+    const scrape = require('../scrape');
+    await scrape('https://example.test/');
 
     const rejectedAbort = {
       resourceType: () => 'image',
@@ -147,7 +147,7 @@ describe('scrap request interception', () => {
   });
 });
 
-describe('scrap backend lifecycle', () => {
+describe('scrape backend lifecycle', () => {
   const ORIGINAL_ENV = process.env;
   let launchOrConnect;
   let mockBrowser;
@@ -191,7 +191,7 @@ describe('scrap backend lifecycle', () => {
     jest.resetModules();
     process.env = { ...ORIGINAL_ENV };
     delete process.env.BROWSER_BACKEND;
-    delete process.env.SCRAP_BLOCK_RESOURCES;
+    delete process.env.SCRAPE_BLOCK_RESOURCES;
     mockBrowser = buildMockBrowser();
     launchOrConnect = require('../launchOrConnect');
     launchOrConnect.mockReturnValue(Promise.resolve(mockBrowser));
@@ -202,29 +202,29 @@ describe('scrap backend lifecycle', () => {
   });
 
   it('eagerly launches at module load when BROWSER_BACKEND is local (default)', () => {
-    require('../scrap');
+    require('../scrape');
     expect(launchOrConnect).toHaveBeenCalledTimes(1);
   });
 
   it('does not launch at module load when BROWSER_BACKEND=cloudflare', () => {
     process.env.BROWSER_BACKEND = 'cloudflare';
-    require('../scrap');
+    require('../scrape');
     expect(launchOrConnect).not.toHaveBeenCalled();
   });
 
-  it('lazily connects on first scrap() when BROWSER_BACKEND=cloudflare', async () => {
+  it('lazily connects on first scrape() when BROWSER_BACKEND=cloudflare', async () => {
     process.env.BROWSER_BACKEND = 'cloudflare';
-    const scrap = require('../scrap');
+    const scrape = require('../scrape');
     expect(launchOrConnect).not.toHaveBeenCalled();
 
-    await scrap('https://example.test/');
+    await scrape('https://example.test/');
     expect(launchOrConnect).toHaveBeenCalledTimes(1);
   });
 
   it('does not reconnect on disconnect when BROWSER_BACKEND=cloudflare', async () => {
     process.env.BROWSER_BACKEND = 'cloudflare';
-    const scrap = require('../scrap');
-    await scrap('https://example.test/');
+    const scrape = require('../scrape');
+    await scrape('https://example.test/');
     expect(launchOrConnect).toHaveBeenCalledTimes(1);
 
     const disconnect = getDisconnectHandler(mockBrowser);
@@ -232,27 +232,27 @@ describe('scrap backend lifecycle', () => {
     disconnect();
 
     expect(launchOrConnect).toHaveBeenCalledTimes(1);
-    expect(scrap.getBrowserPromise()).toBeUndefined();
+    expect(scrape.getBrowserPromise()).toBeUndefined();
   });
 
   it('reconnects on demand after cloudflare disconnect', async () => {
     process.env.BROWSER_BACKEND = 'cloudflare';
-    const scrap = require('../scrap');
-    await scrap('https://example.test/');
+    const scrape = require('../scrape');
+    await scrape('https://example.test/');
 
     getDisconnectHandler(mockBrowser)();
-    expect(scrap.getBrowserPromise()).toBeUndefined();
+    expect(scrape.getBrowserPromise()).toBeUndefined();
 
     mockBrowser = buildMockBrowser();
     launchOrConnect.mockReturnValue(Promise.resolve(mockBrowser));
 
-    await scrap('https://example.test/');
+    await scrape('https://example.test/');
     expect(launchOrConnect).toHaveBeenCalledTimes(2);
   });
 
   it('reconnects immediately on disconnect when BROWSER_BACKEND=local', async () => {
-    const scrap = require('../scrap');
-    await scrap('https://example.test/');
+    const scrape = require('../scrape');
+    await scrape('https://example.test/');
     expect(launchOrConnect).toHaveBeenCalledTimes(1);
 
     getDisconnectHandler(mockBrowser)();
