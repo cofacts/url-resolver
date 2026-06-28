@@ -1,0 +1,46 @@
+name: Build and push to docker
+
+on:
+  push:
+    tags:
+      - release/*
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/release') && 'latest' || 'dev' }}
+
+    steps:
+      - name: Echo RELEASE_TAG
+        run: 'echo $RELEASE_TAG'
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        id: docker_build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./
+          file: ./Dockerfile
+          push: true
+          tags: cofacts/url-resolver:${{ env.RELEASE_TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Image digest
+        run: echo ${{ steps.docker_build.outputs.digest }}
