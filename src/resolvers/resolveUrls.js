@@ -1,9 +1,16 @@
-const scrap = require('../lib/scrap');
+const pLimit = require('p-limit');
+const scrape = require('../lib/scrape');
 const unshorten = require('../lib/unshorten');
 const normalize = require('../lib/normalize');
 const parseMeta = require('../lib/parseMeta');
 const ResolveError = require('../lib/ResolveError');
-const ScrapResult = require('../lib/ScrapResult');
+const ScrapeResult = require('../lib/ScrapeResult');
+
+const SCRAPE_MAX_CONCURRENCY =
+  parseInt(process.env.SCRAPE_MAX_CONCURRENCY, 10) || 3;
+
+// Server-wide cap on concurrent scrape operations to bound puppeteer memory.
+const limit = pLimit(SCRAPE_MAX_CONCURRENCY);
 
 function resolveUrls(call) {
   const { urls } = call.request;
@@ -13,16 +20,16 @@ function resolveUrls(call) {
       try {
         // Normalize and unshorten URLs, update fetchResult
         const normalized = normalize(url);
-        fetchResult = new ScrapResult({ canonical: normalized });
+        fetchResult = new ScrapeResult({ canonical: normalized });
 
         const unshortened = await unshorten(normalized);
-        fetchResult = new ScrapResult({ canonical: unshortened });
+        fetchResult = new ScrapeResult({ canonical: unshortened });
 
         // Fetch info from page
         fetchResult = await parseMeta(unshortened);
 
         if (fetchResult.isIncomplete) {
-          fetchResult.merge(await scrap(unshortened));
+          fetchResult.merge(await limit(() => scrape(unshortened)));
         }
 
         call.write({
@@ -49,3 +56,4 @@ function resolveUrls(call) {
 }
 
 module.exports = { resolveUrls };
+module.exports.SCRAPE_MAX_CONCURRENCY = SCRAPE_MAX_CONCURRENCY;

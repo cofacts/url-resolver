@@ -1,14 +1,14 @@
 jest.mock('../../lib/unshorten');
 jest.mock('../../lib/normalize');
 jest.mock('../../lib/parseMeta');
-jest.mock('../../lib/scrap');
+jest.mock('../../lib/scrape');
 
-const ScrapResult = require('../../lib/ScrapResult');
+const ScrapeResult = require('../../lib/ScrapeResult');
 const unshorten = require('../../lib/unshorten');
 const normalize = require('../../lib/normalize');
 const parseMeta = require('../../lib/parseMeta');
 
-const scrap = require('../../lib/scrap');
+const scrape = require('../../lib/scrape');
 const { resolveUrls } = require('../resolveUrls');
 const ResolveError = require('../../lib/ResolveError');
 const {
@@ -21,13 +21,13 @@ describe('resolveUrls', () => {
     normalize.mockClear();
     unshorten.mockClear();
     parseMeta.mockClear();
-    scrap.mockClear();
+    scrape.mockClear();
   });
 
   it('should resolve multiple valid urls', done => {
     normalize.mockImplementation(url => url);
     unshorten.mockImplementation(async url => url);
-    parseMeta.mockImplementation(url => Promise.resolve(scrap.getResult(url)));
+    parseMeta.mockImplementation(url => Promise.resolve(scrape.getResult(url)));
 
     const urls = [
       'some url with complete meta',
@@ -46,7 +46,7 @@ describe('resolveUrls', () => {
         expect(normalize).toHaveBeenCalledTimes(urls.length);
         expect(unshorten).toHaveBeenCalledTimes(urls.length);
         expect(parseMeta).toHaveBeenCalledTimes(urls.length);
-        expect(scrap).toHaveBeenCalledTimes(0); // No need to scrap
+        expect(scrape).toHaveBeenCalledTimes(0); // No need to scrape
         expect(call.write).toHaveBeenCalledTimes(urls.length);
         done();
       })
@@ -63,7 +63,7 @@ describe('resolveUrls', () => {
       if (url === `unshortened ${badUrl}`) {
         return Promise.reject(new Error(customErrorMsg));
       }
-      return Promise.resolve(scrap.getResult(url));
+      return Promise.resolve(scrape.getResult(url));
     });
 
     const urls = ['some youtube url', badUrl, 'the other youtube url'];
@@ -79,7 +79,7 @@ describe('resolveUrls', () => {
         expect(normalize).toHaveBeenCalledTimes(urls.length);
         expect(unshorten).toHaveBeenCalledTimes(urls.length);
         expect(parseMeta).toHaveBeenCalledTimes(urls.length);
-        expect(scrap).toHaveBeenCalledTimes(0); // No need to scrap
+        expect(scrape).toHaveBeenCalledTimes(0); // No need to scrape
         expect(call.write).toHaveBeenCalledTimes(urls.length);
 
         // Expect:
@@ -87,7 +87,7 @@ describe('resolveUrls', () => {
         // - canonical URL is still updated by unshortened
         expect(
           call.write.mock.calls.find(
-            ([scrapResult]) => scrapResult.url === badUrl
+            ([scrapeResult]) => scrapeResult.url === badUrl
           )
         ).toMatchInlineSnapshot(`
 Array [
@@ -118,7 +118,7 @@ Array [
 
       return url;
     });
-    parseMeta.mockImplementation(url => Promise.resolve(scrap.getResult(url)));
+    parseMeta.mockImplementation(url => Promise.resolve(scrape.getResult(url)));
 
     const urls = ['some youtube url', badUrl, 'the other youtube url'];
     const call = {
@@ -136,7 +136,7 @@ Array [
           urls.length - 1 /* skips not reachable error */
         );
         expect(call.write).toHaveBeenCalledTimes(urls.length);
-        expect(scrap).toHaveBeenCalledTimes(0); // No need to scrap
+        expect(scrape).toHaveBeenCalledTimes(0); // No need to scrape
 
         // Expect erros populated with ResolveErrorEnum.NOT_REACHABLE,
         // while canonical still showing normalized URL
@@ -145,7 +145,7 @@ Array [
         // - canonical URL is still updated by normalize()
         expect(
           call.write.mock.calls.find(
-            ([scrapResult]) => scrapResult.url === badUrl
+            ([scrapeResult]) => scrapeResult.url === badUrl
           )
         ).toMatchInlineSnapshot(`
 Array [
@@ -173,24 +173,24 @@ Array [
     // parseMeta returning incomplete result, but with canonical
     parseMeta.mockImplementation(() =>
       Promise.resolve(
-        new ScrapResult({ canonical: 'canonical from parseMeta' })
+        new ScrapeResult({ canonical: 'canonical from parseMeta' })
       )
     );
 
     const emptySummaryUrl = 'url that has no summary';
-    const scrapFailUrl = 'url that triggers scrap fail';
-    scrap.mockImplementation(async url => {
+    const scrapeFailUrl = 'url that triggers scrape fail';
+    scrape.mockImplementation(async url => {
       switch (url) {
         case emptySummaryUrl:
-          return { ...scrap.getResult(url), summary: undefined };
-        case scrapFailUrl:
-          throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAP_ERROR);
+          return { ...scrape.getResult(url), summary: undefined };
+        case scrapeFailUrl:
+          throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR);
         default:
-          return scrap.getResult(url);
+          return scrape.getResult(url);
       }
     });
 
-    const urls = ['some url', emptySummaryUrl, scrapFailUrl];
+    const urls = ['some url', emptySummaryUrl, scrapeFailUrl];
     const call = {
       request: {
         urls,
@@ -203,12 +203,12 @@ Array [
         expect(normalize).toHaveBeenCalledTimes(urls.length);
         expect(unshorten).toHaveBeenCalledTimes(urls.length);
         expect(parseMeta).toHaveBeenCalledTimes(urls.length);
-        expect(scrap).toHaveBeenCalledTimes(urls.length);
+        expect(scrape).toHaveBeenCalledTimes(urls.length);
         expect(call.write).toHaveBeenCalledTimes(urls.length);
 
         expect(
           call.write.mock.calls.find(
-            ([scrapResult]) => scrapResult.url === emptySummaryUrl
+            ([scrapeResult]) => scrapeResult.url === emptySummaryUrl
           )
         ).toMatchInlineSnapshot(`
 Array [
@@ -226,11 +226,11 @@ Array [
 ]
 `);
 
-        // Expects failed scrapResult still contain data fetched from
+        // Expects failed scrapeResult still contain data fetched from
         // parseMeta mock
         expect(
           call.write.mock.calls.find(
-            ([scrapResult]) => scrapResult.url === scrapFailUrl
+            ([scrapeResult]) => scrapeResult.url === scrapeFailUrl
           )
         ).toMatchInlineSnapshot(`
 Array [
@@ -242,10 +242,53 @@ Array [
     "summary": undefined,
     "title": undefined,
     "topImageUrl": undefined,
-    "url": "url that triggers scrap fail",
+    "url": "url that triggers scrape fail",
   },
 ]
 `);
+        done();
+      })
+      .catch(err => done.fail(err));
+  });
+
+  it('caps concurrent scrape() at SCRAPE_MAX_CONCURRENCY without limiting parseMeta', done => {
+    normalize.mockImplementation(url => url);
+    unshorten.mockImplementation(async url => url);
+
+    let parseMetaActive = 0;
+    let parseMetaMax = 0;
+    parseMeta.mockImplementation(async () => {
+      parseMetaActive++;
+      if (parseMetaActive > parseMetaMax) parseMetaMax = parseMetaActive;
+      await new Promise(r => setImmediate(r));
+      parseMetaActive--;
+      return new ScrapeResult({ canonical: 'partial' });
+    });
+
+    let scrapeActive = 0;
+    let scrapeMax = 0;
+    scrape.mockImplementation(async url => {
+      scrapeActive++;
+      if (scrapeActive > scrapeMax) scrapeMax = scrapeActive;
+      await new Promise(r => setImmediate(r));
+      await new Promise(r => setImmediate(r));
+      scrapeActive--;
+      return scrape.getResult(url);
+    });
+
+    const urls = ['u1', 'u2', 'u3', 'u4', 'u5'];
+    const call = {
+      request: { urls },
+      write: jest.fn(),
+      end: jest.fn(),
+    };
+
+    resolveUrls(call)
+      .then(() => {
+        expect(scrapeMax).toBe(3);
+        expect(parseMetaMax).toBe(urls.length);
+        expect(scrape).toHaveBeenCalledTimes(urls.length);
+        expect(call.write).toHaveBeenCalledTimes(urls.length);
         done();
       })
       .catch(err => done.fail(err));

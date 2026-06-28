@@ -1,4 +1,4 @@
-// When one of these fields is undefined, the scrap result is considered incomplete.
+// When one of these fields is undefined, the scrape result is considered incomplete.
 const REQUIRED_FIELDS = ['canonical', 'topImageUrl', 'title', 'summary'];
 
 // Merge strategy: use longer when merge()
@@ -10,7 +10,7 @@ const PREFER_CURRENT_FIELDS = ['canonical', 'topImageUrl'];
 // Merge strategy: always use new field
 const PREFER_NEW_FIELDS = ['status'];
 
-class ScrapResult {
+class ScrapeResult {
   constructor(init) {
     Object.assign(this, init);
   }
@@ -19,27 +19,27 @@ class ScrapResult {
    * Merge each field using the strategy defined above.
    * For other fields, they are kept intact.
    *
-   * @param {ScrapResult} scrapResult
-   * @return {ScrapResult}
+   * @param {ScrapeResult} scrapeResult
+   * @return {ScrapeResult}
    */
-  merge(scrapResult) {
+  merge(scrapeResult) {
     PREFER_CURRENT_FIELDS.forEach(field => {
       if (typeof this[field] === 'undefined') {
-        this[field] = scrapResult[field];
+        this[field] = scrapeResult[field];
       }
     });
 
     USE_LONGER_FIELDS.forEach(field => {
       if (
-        typeof scrapResult[field] === 'string' &&
-        (this[field] || '').length < scrapResult[field].length
+        typeof scrapeResult[field] === 'string' &&
+        (this[field] || '').length < scrapeResult[field].length
       ) {
-        this[field] = scrapResult[field];
+        this[field] = scrapeResult[field];
       }
     });
 
     PREFER_NEW_FIELDS.forEach(field => {
-      this[field] = scrapResult[field];
+      this[field] = scrapeResult[field];
     });
   }
 
@@ -83,4 +83,4 @@ class ScrapResult {
   status;
 }
 
-module.exports = ScrapResult;
+module.exports = ScrapeResult;

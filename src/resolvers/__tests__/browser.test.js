@@ -1,6 +1,6 @@
-jest.mock('../../lib/scrap');
+jest.mock('../../lib/scrape');
 const { getBrowserStats } = require('../browser');
-const { pageCount } = require('../../lib/scrap');
+const { pageCount } = require('../../lib/scrape');
 // pageCount is only for testing; it doesn't exist in the real module.
 
 describe('browser', () => {

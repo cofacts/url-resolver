@@ -1,10 +1,10 @@
 /* eslint-env browser */
 const path = require('path');
 const fs = require('fs');
-const puppeteer = require('puppeteer');
 const { TimeoutError } = require('puppeteer');
+const launchOrConnect = require('./launchOrConnect');
 const ResolveError = require('./ResolveError');
-const ScrapResult = require('./ScrapResult');
+const ScrapeResult = require('./ScrapeResult');
 const rollbar = require('./rollbar');
 
 // eslint-disable-next-line node/no-unpublished-require
@@ -13,57 +13,78 @@ const { ResolveError: ResolveErrorEnum } = require('./resolve_error_pb');
 const FETCHING_TIMEOUT = 5000;
 const PROCESSING_TIMEOUT = 1000;
 
+const SCRAPE_BLOCK_RESOURCES = (process.env.SCRAPE_BLOCK_RESOURCES === undefined
+  ? 'image,media,font'
+  : process.env.SCRAPE_BLOCK_RESOURCES
+)
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
 let browserPromise;
 let isBrowserClosing = false;
+
+const isCloudflare = (process.env.BROWSER_BACKEND || 'local') === 'cloudflare';
 
 /**
  * Launch Google Chrome and sets browserPromise
  */
 function launchBrowser() {
-  browserPromise = puppeteer.launch({
-    acceptInsecureCerts: true,
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage', // https://github.com/puppeteer/puppeteer/issues/1321#issuecomment-378361236
-    ],
-    // devtools: true,
-  });
-  browserPromise.then(browser => {
-    // eslint-disable-next-line no-console
-    console.log(`Browser launched successfully.`);
+  browserPromise = launchOrConnect();
+  browserPromise
+    .then(browser => {
+      // eslint-disable-next-line no-console
+      console.log(`Browser launched successfully.`);
 
-    // Some page may use window.open() to open extra pages.
-    // We should close them when such page is detected.
-    //
-    browser.on('targetcreated', async target => {
-      const opener = target.opener();
-      if (opener) {
-        // eslint-disable-next-line no-console
-        console.info(
-          `[targetcreated] Extra page "${target.url()}" opened by "${opener.url()}". Closing.`
-        );
+      // Some page may use window.open() to open extra pages.
+      // We should close them when such page is detected.
+      //
+      browser.on('targetcreated', async target => {
+        const opener = target.opener();
+        if (opener) {
+          // eslint-disable-next-line no-console
+          console.info(
+            `[targetcreated] Extra page "${target.url()}" opened by "${opener.url()}". Closing.`
+          );
 
-        const page = await target.page();
-        if (page) page.close();
-      }
+          const page = await target.page();
+          if (page) page.close();
+        }
+      });
+
+      browser.on('disconnected', () => {
+        // Ignore the case when close() is invoked
+        if (isBrowserClosing) return;
+
+        if (isCloudflare) {
+          // Cloudflare auto-closes the remote session after keep_alive
+          // inactivity. Reset so the next scrape() reconnects on demand
+          // instead of burning a fresh session per idle timeout cycle.
+          browserPromise = undefined;
+          return;
+        }
+
+        // Local Chrome sometimes crashes; reconnect eagerly.
+        // https://github.com/cofacts/url-resolver/issues/9
+        rollbar.warn('Puppeteer disconnected from Chrome');
+        launchBrowser();
+      });
+    })
+    .catch(err => {
+      rollbar.error(err, '[scrape] launchOrConnect failed');
+      browserPromise = undefined;
     });
-
-    // Google Chrome sometimes crashes, needs re-launch
-    // https://github.com/cofacts/url-resolver/issues/9
-    //
-    browser.on('disconnected', () => {
-      // Ignore the case when close() is invoked
-      if (isBrowserClosing) return;
-
-      rollbar.warn('Puppeteer disconnected from Chrome');
-      launchBrowser();
-    });
-  });
 }
 
-launchBrowser();
+function getBrowser() {
+  if (!browserPromise) launchBrowser();
+  return browserPromise;
+}
+
+// Local backend eagerly launches so the first request does not pay chromium
+// startup latency. Cloudflare backend connects lazily on demand because each
+// session is billed and auto-closes on idle.
+if (!isCloudflare) launchBrowser();
 
 const readabilityJsStr = fs.readFileSync(
   path.join(__dirname, '../vendor/Readability.js'),
@@ -90,12 +111,24 @@ async function stop(page) {
 
 /**
  * Fetches the given url
- * @param {string} url - The URL to scrap
- * @return {Promise<ScrapResult>}
+ * @param {string} url - The URL to scrape
+ * @return {Promise<ScrapeResult>}
  */
-async function scrap(url) {
-  const browser = await browserPromise;
+async function scrape(url) {
+  const browser = await getBrowser();
   const page = await browser.newPage();
+
+  if (SCRAPE_BLOCK_RESOURCES.length > 0) {
+    await page.setRequestInterception(true);
+    page.on('request', req => {
+      // abort()/continue() reject if the page closes mid-flight; swallow.
+      if (SCRAPE_BLOCK_RESOURCES.includes(req.resourceType())) {
+        req.abort().catch(() => {});
+      } else {
+        req.continue().catch(() => {});
+      }
+    });
+  }
 
   // Automaticaly accept all alert() or confirm()
   page.on('dialog', async dialog => {
@@ -133,11 +166,11 @@ async function scrap(url) {
         throw new ResolveError(ResolveErrorEnum.UNSUPPORTED, e);
 
       default:
-        rollbar.error(e, '[scrap] page.goto() Error', { url });
+        rollbar.error(e, '[scrape] page.goto() Error', { url });
 
         // unkown error, directly return
         await page.close();
-        throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAP_ERROR, e);
+        throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR, e);
     }
   }
   if (response) {
@@ -163,7 +196,7 @@ async function scrap(url) {
   } catch (e) {
     // Maybe context destroyed error (caused by JS / HTML redirects)
     await page.close();
-    throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAP_ERROR, e);
+    throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR, e);
   }
 
   // eslint-disable-next-line no-console
@@ -184,7 +217,7 @@ async function scrap(url) {
   } catch (e) {
     if (!(e instanceof TimeoutError)) {
       await page.close();
-      throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAP_ERROR, e);
+      throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR, e);
     }
   }
 
@@ -201,7 +234,7 @@ async function scrap(url) {
   } catch (e) {
     if (!(e instanceof TimeoutError)) {
       await page.close();
-      throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAP_ERROR, e);
+      throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR, e);
     }
   }
 
@@ -225,7 +258,7 @@ async function scrap(url) {
   } catch (e) {
     // Maybe context destroyed error (caused by JS / HTML redirects)
     await page.close();
-    throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAP_ERROR, e);
+    throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR, e);
   }
 
   // For URLs that cannot navigate properly
@@ -263,7 +296,7 @@ async function scrap(url) {
   } catch (e) {
     // Cannot get top image URL is not a big deal, just log error
 
-    rollbar.error(e, '[scrap] topImageUrl error', { url });
+    rollbar.error(e, '[scrape] topImageUrl error', { url });
   }
 
   // Returns article object by readibility.parse()
@@ -277,7 +310,7 @@ async function scrap(url) {
       /* eslint-enable no-eval, no-undef */
     }, readabilityJsStr);
   } catch (e) {
-    rollbar.error(e, '[scrap] executor error', { url });
+    rollbar.error(e, '[scrape] executor error', { url });
   }
 
   // Try a second time, using simpler approach
@@ -293,7 +326,7 @@ async function scrap(url) {
         };
       });
     } catch (e) {
-      rollbar.error(e, '[scrap] executor-fallback', { url });
+      rollbar.error(e, '[scrape] executor-fallback', { url });
     }
   }
 
@@ -301,10 +334,10 @@ async function scrap(url) {
 
   // If we still cannot get resultArticle, throw
   if (!resultArticle) {
-    throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAP_ERROR);
+    throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR);
   }
 
-  return new ScrapResult({
+  return new ScrapeResult({
     canonical,
     title: resultArticle.title,
     summary: resultArticle.textContent ? resultArticle.textContent.trim() : '',
@@ -314,16 +347,18 @@ async function scrap(url) {
   });
 }
 
-module.exports = scrap;
+module.exports = scrape;
+module.exports.SCRAPE_BLOCK_RESOURCES = SCRAPE_BLOCK_RESOURCES;
 
-scrap.getBrowserPromise = () => browserPromise;
+scrape.getBrowserPromise = () => browserPromise;
 
 /**
  * Closing browser. After closing, the url-resolver can never be used again.
  * Should only use after unit tests.
  */
-scrap.closeBrowser = async () => {
+scrape.closeBrowser = async () => {
   isBrowserClosing = true;
+  if (!browserPromise) return;
   const browser = await browserPromise;
   browser.close();
 };

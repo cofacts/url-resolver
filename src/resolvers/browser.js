@@ -1,4 +1,4 @@
-const { getBrowserPromise } = require('../lib/scrap');
+const { getBrowserPromise } = require('../lib/scrape');
 
 const getBrowserStats = async (_, callback) => {
   const browser = await getBrowserPromise();
