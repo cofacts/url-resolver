@@ -12,6 +12,16 @@ const SCRAPE_MAX_CONCURRENCY =
 // Server-wide cap on concurrent scrape operations to bound puppeteer memory.
 const limit = pLimit(SCRAPE_MAX_CONCURRENCY);
 
+function isTerminalHttpError(status) {
+  return (
+    status >= 500 ||
+    status === 401 ||
+    status === 403 ||
+    status === 410 ||
+    status === 451
+  );
+}
+
 function resolveUrls(call) {
   const { urls } = call.request;
   return Promise.all(
@@ -22,14 +32,20 @@ function resolveUrls(call) {
         const normalized = normalize(url);
         fetchResult = new ScrapeResult({ canonical: normalized });
 
-        const { url: unshortened } = await unshorten(normalized);
+        const { url: unshortened, status: finalStatus } = await unshorten(
+          normalized
+        );
         fetchResult = new ScrapeResult({ canonical: unshortened });
 
         // Fetch info from page
         fetchResult = await parseMeta(unshortened);
 
         if (fetchResult.isIncomplete) {
-          fetchResult.merge(await limit(() => scrape(unshortened)));
+          if (isTerminalHttpError(finalStatus)) {
+            fetchResult.status = finalStatus;
+          } else {
+            fetchResult.merge(await limit(() => scrape(unshortened)));
+          }
         }
 
         call.write({
