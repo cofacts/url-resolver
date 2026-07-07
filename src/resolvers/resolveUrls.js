@@ -3,6 +3,7 @@ const scrape = require('../lib/scrape');
 const unshorten = require('../lib/unshorten');
 const normalize = require('../lib/normalize');
 const parseMeta = require('../lib/parseMeta');
+const extractStatic = require('../lib/extractStatic');
 const ResolveError = require('../lib/ResolveError');
 const ScrapeResult = require('../lib/ScrapeResult');
 
@@ -32,18 +33,34 @@ function resolveUrls(call) {
         const normalized = normalize(url);
         fetchResult = new ScrapeResult({ canonical: normalized });
 
-        const { url: unshortened, status: finalStatus } = await unshorten(
-          normalized
-        );
+        const { url: unshortened } = await unshorten(normalized);
         fetchResult = new ScrapeResult({ canonical: unshortened });
 
         // Fetch info from page
         fetchResult = await parseMeta(unshortened);
 
         if (fetchResult.isIncomplete) {
-          if (isTerminalHttpError(finalStatus)) {
-            fetchResult.status = finalStatus;
-          } else {
+          let staticResult = null;
+          try {
+            staticResult = await extractStatic(unshortened);
+          } catch (e) {
+            // Static extraction only handles SSR pages; if it fails
+            // (network error, ResolveError, etc.), log and fall back to
+            // the puppeteer path below.
+            // eslint-disable-next-line no-console
+            console.error('[extractStatic]', unshortened, e);
+          }
+          if (staticResult) fetchResult.merge(staticResult);
+
+          // Only skip puppeteer when a GET has confirmed a terminal
+          // status. unshorten's HEAD status is not authoritative (many
+          // sites reject HEAD with 401/403/5xx while serving GET 200),
+          // and extractStatic returning null (non-HTML response) or
+          // throwing (network error) means we simply do not know — err
+          // toward trying puppeteer.
+          const hasTerminalGetStatus =
+            staticResult && isTerminalHttpError(staticResult.status);
+          if (fetchResult.isIncomplete && !hasTerminalGetStatus) {
             fetchResult.merge(await limit(() => scrape(unshortened)));
           }
         }
