@@ -26,7 +26,7 @@ describe('resolveUrls', () => {
 
   it('should resolve multiple valid urls', done => {
     normalize.mockImplementation(url => url);
-    unshorten.mockImplementation(async url => url);
+    unshorten.mockImplementation(async url => ({ url, status: 200 }));
     parseMeta.mockImplementation(url => Promise.resolve(scrape.getResult(url)));
 
     const urls = [
@@ -58,7 +58,10 @@ describe('resolveUrls', () => {
     const customErrorMsg = 'some error';
 
     normalize.mockImplementation(url => url);
-    unshorten.mockImplementation(async url => `unshortened ${url}`);
+    unshorten.mockImplementation(async url => ({
+      url: `unshortened ${url}`,
+      status: 200,
+    }));
     parseMeta.mockImplementation(url => {
       if (url === `unshortened ${badUrl}`) {
         return Promise.reject(new Error(customErrorMsg));
@@ -87,7 +90,7 @@ describe('resolveUrls', () => {
         // - canonical URL is still updated by unshortened
         expect(
           call.write.mock.calls.find(
-            ([scrapeResult]) => scrapeResult.url === badUrl
+            ([scrapResult]) => scrapResult.url === badUrl
           )
         ).toMatchInlineSnapshot(`
 Array [
@@ -116,7 +119,7 @@ Array [
         throw new ResolveError(ResolveErrorEnum.NOT_REACHABLE);
       }
 
-      return url;
+      return { url, status: 200 };
     });
     parseMeta.mockImplementation(url => Promise.resolve(scrape.getResult(url)));
 
@@ -145,7 +148,7 @@ Array [
         // - canonical URL is still updated by normalize()
         expect(
           call.write.mock.calls.find(
-            ([scrapeResult]) => scrapeResult.url === badUrl
+            ([scrapResult]) => scrapResult.url === badUrl
           )
         ).toMatchInlineSnapshot(`
 Array [
@@ -168,7 +171,7 @@ Array [
 
   it('should resolve multiple urls with incomplete meta', done => {
     normalize.mockImplementation(url => url);
-    unshorten.mockImplementation(async url => url);
+    unshorten.mockImplementation(async url => ({ url, status: 200 }));
 
     // parseMeta returning incomplete result, but with canonical
     parseMeta.mockImplementation(() =>
@@ -178,19 +181,19 @@ Array [
     );
 
     const emptySummaryUrl = 'url that has no summary';
-    const scrapeFailUrl = 'url that triggers scrape fail';
+    const scrapFailUrl = 'url that triggers scrape fail';
     scrape.mockImplementation(async url => {
       switch (url) {
         case emptySummaryUrl:
           return { ...scrape.getResult(url), summary: undefined };
-        case scrapeFailUrl:
+        case scrapFailUrl:
           throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR);
         default:
           return scrape.getResult(url);
       }
     });
 
-    const urls = ['some url', emptySummaryUrl, scrapeFailUrl];
+    const urls = ['some url', emptySummaryUrl, scrapFailUrl];
     const call = {
       request: {
         urls,
@@ -208,7 +211,7 @@ Array [
 
         expect(
           call.write.mock.calls.find(
-            ([scrapeResult]) => scrapeResult.url === emptySummaryUrl
+            ([scrapResult]) => scrapResult.url === emptySummaryUrl
           )
         ).toMatchInlineSnapshot(`
 Array [
@@ -226,11 +229,11 @@ Array [
 ]
 `);
 
-        // Expects failed scrapeResult still contain data fetched from
+        // Expects failed scrapResult still contain data fetched from
         // parseMeta mock
         expect(
           call.write.mock.calls.find(
-            ([scrapeResult]) => scrapeResult.url === scrapeFailUrl
+            ([scrapResult]) => scrapResult.url === scrapFailUrl
           )
         ).toMatchInlineSnapshot(`
 Array [
@@ -253,7 +256,7 @@ Array [
 
   it('caps concurrent scrape() at SCRAPE_MAX_CONCURRENCY without limiting parseMeta', done => {
     normalize.mockImplementation(url => url);
-    unshorten.mockImplementation(async url => url);
+    unshorten.mockImplementation(async url => ({ url, status: 200 }));
 
     let parseMetaActive = 0;
     let parseMetaMax = 0;
@@ -265,14 +268,14 @@ Array [
       return new ScrapeResult({ canonical: 'partial' });
     });
 
-    let scrapeActive = 0;
-    let scrapeMax = 0;
+    let scrapActive = 0;
+    let scrapMax = 0;
     scrape.mockImplementation(async url => {
-      scrapeActive++;
-      if (scrapeActive > scrapeMax) scrapeMax = scrapeActive;
+      scrapActive++;
+      if (scrapActive > scrapMax) scrapMax = scrapActive;
       await new Promise(r => setImmediate(r));
       await new Promise(r => setImmediate(r));
-      scrapeActive--;
+      scrapActive--;
       return scrape.getResult(url);
     });
 
@@ -285,7 +288,7 @@ Array [
 
     resolveUrls(call)
       .then(() => {
-        expect(scrapeMax).toBe(3);
+        expect(scrapMax).toBe(3);
         expect(parseMetaMax).toBe(urls.length);
         expect(scrape).toHaveBeenCalledTimes(urls.length);
         expect(call.write).toHaveBeenCalledTimes(urls.length);
