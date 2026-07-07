@@ -2,6 +2,7 @@ jest.mock('../../lib/unshorten');
 jest.mock('../../lib/normalize');
 jest.mock('../../lib/parseMeta');
 jest.mock('../../lib/scrape');
+jest.mock('../../lib/extractStatic', () => jest.fn());
 
 const ScrapeResult = require('../../lib/ScrapeResult');
 const unshorten = require('../../lib/unshorten');
@@ -292,6 +293,144 @@ Array [
         expect(parseMetaMax).toBe(urls.length);
         expect(scrape).toHaveBeenCalledTimes(urls.length);
         expect(call.write).toHaveBeenCalledTimes(urls.length);
+        done();
+      })
+      .catch(err => done.fail(err));
+  });
+
+  it('trusts extractStatic GET status over unshorten HEAD status', done => {
+    // Site that rejects HEAD with 403 but responds 200 to GET (common with
+    // Cloudflare / WordPress / CDNs). Before the fix, this was misclassified
+    // as terminal and skipped puppeteer + extractStatic entirely.
+    normalize.mockImplementation(url => url);
+    unshorten.mockImplementation(async url => ({ url, status: 403 }));
+    parseMeta.mockImplementation(() =>
+      Promise.resolve(
+        new ScrapeResult({ canonical: 'canonical from parseMeta' })
+      )
+    );
+    // eslint-disable-next-line global-require
+    const extractStatic = require('../../lib/extractStatic');
+    extractStatic.mockImplementation(
+      async url =>
+        new ScrapeResult({
+          canonical: url,
+          title: 'title from static',
+          summary: 'summary from static',
+          topImageUrl: 'https://cdn/cover.jpg',
+          status: 200,
+        })
+    );
+
+    const call = {
+      request: { urls: ['head-403-get-200'] },
+      write: jest.fn(),
+      end: jest.fn(),
+    };
+    resolveUrls(call)
+      .then(() => {
+        expect(extractStatic).toHaveBeenCalledWith('head-403-get-200');
+        // Static result completed the fetch: no puppeteer fallback.
+        expect(scrape).toHaveBeenCalledTimes(0);
+        const written = call.write.mock.calls[0][0];
+        expect(written.title).toBe('title from static');
+        expect(written.summary).toBe('summary from static');
+        expect(written.status).toBe(200);
+        expect(written.successfully_resolved).toBe(true);
+        done();
+      })
+      .catch(err => done.fail(err));
+  });
+
+  it('skips puppeteer when extractStatic GET confirms terminal status', done => {
+    // HEAD reports 200 but the actual GET returns a terminal 500. Puppeteer
+    // cannot recover from a server-error response, so skip the render.
+    normalize.mockImplementation(url => url);
+    unshorten.mockImplementation(async url => ({ url, status: 200 }));
+    parseMeta.mockImplementation(() =>
+      Promise.resolve(
+        new ScrapeResult({ canonical: 'canonical from parseMeta' })
+      )
+    );
+    // eslint-disable-next-line global-require
+    const extractStatic = require('../../lib/extractStatic');
+    extractStatic.mockImplementation(
+      async url => new ScrapeResult({ canonical: url, status: 500 })
+    );
+
+    const call = {
+      request: { urls: ['get-500'] },
+      write: jest.fn(),
+      end: jest.fn(),
+    };
+    resolveUrls(call)
+      .then(() => {
+        expect(extractStatic).toHaveBeenCalledWith('get-500');
+        expect(scrape).toHaveBeenCalledTimes(0);
+        const written = call.write.mock.calls[0][0];
+        expect(written.status).toBe(500);
+        expect(written.successfully_resolved).toBe(true);
+        done();
+      })
+      .catch(err => done.fail(err));
+  });
+
+  it('falls through to puppeteer when extractStatic throws (HEAD status ignored)', done => {
+    // HEAD 403 must not short-circuit puppeteer when GET could not
+    // confirm the terminal status (extractStatic threw a network error).
+    normalize.mockImplementation(url => url);
+    unshorten.mockImplementation(async url => ({ url, status: 403 }));
+    parseMeta.mockImplementation(() =>
+      Promise.resolve(
+        new ScrapeResult({ canonical: 'canonical from parseMeta' })
+      )
+    );
+    // eslint-disable-next-line global-require
+    const extractStatic = require('../../lib/extractStatic');
+    extractStatic.mockImplementation(async () => {
+      throw new ResolveError(ResolveErrorEnum.NOT_REACHABLE);
+    });
+    scrape.mockImplementation(async url => scrape.getResult(url));
+
+    const call = {
+      request: { urls: ['head-403-static-throws'] },
+      write: jest.fn(),
+      end: jest.fn(),
+    };
+    resolveUrls(call)
+      .then(() => {
+        expect(extractStatic).toHaveBeenCalledWith('head-403-static-throws');
+        expect(scrape).toHaveBeenCalledTimes(1);
+        done();
+      })
+      .catch(err => done.fail(err));
+  });
+
+  it('falls through to puppeteer when extractStatic returns null (non-HTML, HEAD status ignored)', done => {
+    // HEAD 403 must not short-circuit puppeteer when GET responded but
+    // extractStatic returned null (non-HTML content type). We still do
+    // not know whether the URL is renderable.
+    normalize.mockImplementation(url => url);
+    unshorten.mockImplementation(async url => ({ url, status: 403 }));
+    parseMeta.mockImplementation(() =>
+      Promise.resolve(
+        new ScrapeResult({ canonical: 'canonical from parseMeta' })
+      )
+    );
+    // eslint-disable-next-line global-require
+    const extractStatic = require('../../lib/extractStatic');
+    extractStatic.mockImplementation(async () => null);
+    scrape.mockImplementation(async url => scrape.getResult(url));
+
+    const call = {
+      request: { urls: ['head-403-static-null'] },
+      write: jest.fn(),
+      end: jest.fn(),
+    };
+    resolveUrls(call)
+      .then(() => {
+        expect(extractStatic).toHaveBeenCalledWith('head-403-static-null');
+        expect(scrape).toHaveBeenCalledTimes(1);
         done();
       })
       .catch(err => done.fail(err));
