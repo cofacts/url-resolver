@@ -1,0 +1,10 @@
+{
+  "url": "https://example.com/",
+  "fetchedAt": "2026-07-12T18:46:17.787Z",
+  "ok": true,
+  "status": 200,
+  "finalUrl": "https://example.com/",
+  "contentType": "text/html",
+  "bytes": 559,
+  "elapsed_ms": 14
+}

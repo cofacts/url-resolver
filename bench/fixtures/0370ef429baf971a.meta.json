@@ -1,0 +1,10 @@
+{
+  "url": "https://www.threads.net/",
+  "fetchedAt": "2026-07-12T18:46:23.458Z",
+  "ok": true,
+  "status": 200,
+  "finalUrl": "https://www.threads.com/",
+  "contentType": "text/html; charset=\"utf-8\"",
+  "bytes": 656948,
+  "elapsed_ms": 2239
+}

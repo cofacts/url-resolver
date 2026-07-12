@@ -1,0 +1,31 @@
+# Sample URLs for the extraction bench.
+# One URL per line. Lines starting with '#' are comments.
+#
+# Categories:
+#   - docs / SSR: static path should work cleanly
+#   - Taiwan news: typical Cofacts traffic, SSR with CJK content
+#   - long-form English: Wikipedia, BBC
+#   - SPA / social: static path expected to miss; puppeteer needed
+#
+# For production tuning, replace with a real slice of Cofacts URLs.
+
+# docs (SSR + clean markup)
+https://docs.anthropic.com/en/docs/intro
+https://stripe.com
+
+# Vanilla SSR
+https://example.com/
+
+# Taiwan news
+https://www.cna.com.tw/news/aipl/202606280112.aspx
+https://udn.com/news/story/7314/8930000
+https://www.ltn.com.tw/
+https://news.tvbs.com.tw/
+https://www.ettoday.net/
+
+# Long-form English
+https://en.wikipedia.org/wiki/Web_scraping
+https://www.bbc.com/news
+
+# SPA (puppeteer territory)
+https://www.threads.net/

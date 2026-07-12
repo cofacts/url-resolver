@@ -1,0 +1,10 @@
+{
+  "url": "https://docs.anthropic.com/en/docs/intro",
+  "fetchedAt": "2026-07-12T18:46:17.258Z",
+  "ok": true,
+  "status": 200,
+  "finalUrl": "https://platform.claude.com/docs/en/intro",
+  "contentType": "text/html; charset=utf-8",
+  "bytes": 741688,
+  "elapsed_ms": 1352
+}

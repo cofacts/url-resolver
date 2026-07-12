@@ -1,0 +1,10 @@
+{
+  "url": "https://en.wikipedia.org/wiki/Web_scraping",
+  "fetchedAt": "2026-07-12T18:46:20.033Z",
+  "ok": true,
+  "status": 200,
+  "finalUrl": "https://en.wikipedia.org/wiki/Web_scraping",
+  "contentType": "text/html; charset=UTF-8",
+  "bytes": 230141,
+  "elapsed_ms": 412
+}

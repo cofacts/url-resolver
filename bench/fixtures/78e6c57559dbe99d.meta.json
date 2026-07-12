@@ -1,0 +1,10 @@
+{
+  "url": "https://www.bbc.com/news",
+  "fetchedAt": "2026-07-12T18:46:21.218Z",
+  "ok": true,
+  "status": 200,
+  "finalUrl": "https://www.bbc.com/news",
+  "contentType": "text/html; charset=utf-8",
+  "bytes": 378658,
+  "elapsed_ms": 1183
+}

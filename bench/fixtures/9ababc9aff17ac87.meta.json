@@ -1,0 +1,10 @@
+{
+  "url": "https://stripe.com",
+  "fetchedAt": "2026-07-12T18:46:17.771Z",
+  "ok": true,
+  "status": 200,
+  "finalUrl": "https://stripe.com/jp",
+  "contentType": "text/html; charset=utf-8",
+  "bytes": 678139,
+  "elapsed_ms": 510
+}
