@@ -1,7 +1,7 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`parseMeta parses metadata: http://ezp9.com/p128163.asp 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "http://ezp9.com/p128163.asp",
   "html": undefined,
   "status": undefined,
@@ -14,7 +14,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: http://ezp9.com/p128163.asp incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: http://goez1.com/p117046.asp 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "http://goez1.com/p117046.asp",
   "html": undefined,
   "status": undefined,
@@ -27,7 +27,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: http://goez1.com/p117046.asp incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: http://mp.weixin.qq.com/s/Mg_F1Dbegi0k1i8DRvMORA 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "http://mp.weixin.qq.com/s?__biz=MzIxNTA1OTk3MQ==&mid=2654202378&idx=1&sn=a81dd7ab7f0707221ed508279b3848c7&chksm=8c595166bb2ed8704eb9459c3e5deb51fddf7bf8d266f29dbdf7fc45ec7d9d14a6e1041e8099#rd",
   "html": undefined,
   "status": undefined,
@@ -40,7 +40,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: http://mp.weixin.qq.com/s/Mg_F1Dbegi0k1i8DRvMORA incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: http://www.cocomy.net/post/457479?from=app_line 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.cocomy.net/post/457479",
   "html": undefined,
   "status": undefined,
@@ -53,7 +53,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: http://www.cocomy.net/post/457479?from=app_line incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: http://www.rumtoast.com/7450/%E5%90%8D%E5%AE%B6%E5%81%BD%E8%AA%9E%E9%8C%84%EF%BC%8F%E5%8F%B0%E7%81%A3%E8%80%81%E4%BA%BA-%E6%A5%8A%E6%8C%AF%E6%98%8E%E6%95%99%E6%8E%88%E8%A8%98%E8%BF%B0-%EF%BC%9A%E6%98%AF%E6%97%A5%E6%9C%AC%E4%BA%BA 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.rumtoast.com/7450/名家偽語錄／台灣老人-楊振明教授記述-：是日本人",
   "html": undefined,
   "status": undefined,
@@ -66,7 +66,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: http://www.rumtoast.com/7450/%E5%90%8D%E5%AE%B6%E5%81%BD%E8%AA%9E%E9%8C%84%EF%BC%8F%E5%8F%B0%E7%81%A3%E8%80%81%E4%BA%BA-%E6%A5%8A%E6%8C%AF%E6%98%8E%E6%95%99%E6%8E%88%E8%A8%98%E8%BF%B0-%EF%BC%9A%E6%98%AF%E6%97%A5%E6%9C%AC%E4%BA%BA incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: http://www.setn.com/News.aspx?NewsID=122876 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.setn.com/News.aspx?NewsID=122876",
   "html": undefined,
   "status": undefined,
@@ -79,7 +79,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: http://www.setn.com/News.aspx?NewsID=122876 incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://jerrynest.io/line-girl/ 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://jerrynest.io/line-girl/",
   "html": "<blockquote class=\\"wp-embedded-content\\"><a href=\\"https://jerrynest.io/line-girl/\\">分享就免費送貼圖主題、18 禁影片？透過文本分析了解 Line@ 機器人酒店攬客手法</a></blockquote>
 <script type='text/javascript'>
@@ -98,7 +98,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://jerrynest.io/line-girl/ incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://kknews.cc/health/q6qq6jr.html#.XMcEo_G2YxF.lineme 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://kknews.cc/health/q6qq6jr.html",
   "html": undefined,
   "status": undefined,
@@ -111,7 +111,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://kknews.cc/health/q6qq6jr.html#.XMcEo_G2YxF.lineme incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://line.me/R/ti/p/@rai0484p 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://line.me/R/ti/p/@rai0484p",
   "html": undefined,
   "status": undefined,
@@ -124,7 +124,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://line.me/R/ti/p/@rai0484p incomplete? 1`] = `true`;
 
 exports[`parseMeta parses metadata: https://m.facebook.com/story.php?story_fbid=2522927307935653&id=100006552254415 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.facebook.com/story.php?story_fbid=2522927307935653&id=100006552254415",
   "html": undefined,
   "status": undefined,
@@ -141,7 +141,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://m.facebook.com/story.php?story_fbid=2522927307935653&id=100006552254415 incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://m.youtube.com/watch?v=e0cG7WF4VZA&ebc=ANyPxKrMjbfAYDfGRr8qVnLLqmCaaOZl-qc4EXr2cAHVWlXA3n5QZ08xc51zxc7_juyJ45v_QCvHijXUfRGPdjO6UC0n5VWnMw&feature=emb_rel_end 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.youtube.com/watch?v=e0cG7WF4VZA",
   "html": "<iframe width=\\"480\\" height=\\"270\\" src=\\"https://www.youtube.com/embed/e0cG7WF4VZA?feature=oembed\\" frameborder=\\"0\\" allow=\\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\\" allowfullscreen></iframe>",
   "status": undefined,
@@ -154,7 +154,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://m.youtube.com/watch?v=e0cG7WF4VZA&ebc=ANyPxKrMjbfAYDfGRr8qVnLLqmCaaOZl-qc4EXr2cAHVWlXA3n5QZ08xc51zxc7_juyJ45v_QCvHijXUfRGPdjO6UC0n5VWnMw&feature=emb_rel_end incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://news.ltn.com.tw/news/politics/breakingnews/2654079 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://news.ltn.com.tw/news/politics/breakingnews/2654079",
   "html": undefined,
   "status": undefined,
@@ -167,7 +167,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://news.ltn.com.tw/news/politics/breakingnews/2654079 incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://news.tvbs.com.tw/local/382040 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://news.tvbs.com.tw/local/382040",
   "html": undefined,
   "status": undefined,
@@ -180,7 +180,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://news.tvbs.com.tw/local/382040 incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://pansci.asia/archives/105551 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://pansci.asia/archives/105551",
   "html": "<blockquote class=\\"wp-embedded-content\\"><a href=\\"https://pansci.asia/archives/105551\\">菸草致癌研究風雲：科學家與菸草商的鬥智—《p53：破解癌症密碼的基因》</a></blockquote>
 <script type='text/javascript'>
@@ -198,7 +198,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://pansci.asia/archives/105551 incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://tfc-taiwan.org.tw/articles/112 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://tfc-taiwan.org.tw/articles/112",
   "html": undefined,
   "status": undefined,
@@ -211,7 +211,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://tfc-taiwan.org.tw/articles/112 incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://today.line.me/TW/article/0ZBe3P?utm_source=lineshare 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://today.line.me/tw/article/%E6%9B%B4%E6%96%B0%EF%BC%8F%E5%A4%A7%E9%98%AA6+1%E5%9C%B0%E9%9C%87%E3%80%803%E6%AD%BB307%E5%82%B7-0ZBe3P",
   "html": undefined,
   "status": undefined,
@@ -224,7 +224,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://today.line.me/TW/article/0ZBe3P?utm_source=lineshare incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://tw.appledaily.com/new/realtime/20180930/1438980/?utm_source=Line&utm_medium=MWeb_Share&utm_campaign=https%3A%2F%2Ftw.appledaily.com%2Fnew%2Frealtime%2F20180930%2F1438980%2F 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://tw.appledaily.com/new/realtime/20180930/1438980/",
   "html": undefined,
   "status": undefined,
@@ -237,7 +237,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://tw.appledaily.com/new/realtime/20180930/1438980/?utm_source=Line&utm_medium=MWeb_Share&utm_campaign=https%3A%2F%2Ftw.appledaily.com%2Fnew%2Frealtime%2F20180930%2F1438980%2F incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://tw.news.yahoo.com/%E5%9C%8B%E8%A1%9B%E9%99%A2%E7%A0%94%E7%A9%B6%E8%AD%89%E5%AF%A6-%E7%99%8C%E7%97%87%E5%8F%AF%E8%83%BD%E6%98%AF%E4%BB%A3%E8%AC%9D%E7%96%BE%E7%97%85-112341468.html 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "http://tw.news.yahoo.com/%E5%9C%8B%E8%A1%9B%E9%99%A2%E7%A0%94%E7%A9%B6%E8%AD%89%E5%AF%A6-%E7%99%8C%E7%97%87%E5%8F%AF%E8%83%BD%E6%98%AF%E4%BB%A3%E8%AC%9D%E7%96%BE%E7%97%85-112341468.html",
   "html": undefined,
   "status": undefined,
@@ -250,7 +250,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://tw.news.yahoo.com/%E5%9C%8B%E8%A1%9B%E9%99%A2%E7%A0%94%E7%A9%B6%E8%AD%89%E5%AF%A6-%E7%99%8C%E7%97%87%E5%8F%AF%E8%83%BD%E6%98%AF%E4%BB%A3%E8%AC%9D%E7%96%BE%E7%97%85-112341468.html incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://udn.com/news/story/7193/3555005 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://udn.com/news/story/7193/3555005",
   "html": undefined,
   "status": undefined,
@@ -263,7 +263,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://udn.com/news/story/7193/3555005 incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://www.cdc.gov.tw/Bulletin/Detail/BeQ6tY0m4qkMmTRw4hSjtw?typeid=9 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.cdc.gov.tw/Bulletin/Detail/BeQ6tY0m4qkMmTRw4hSjtw?typeid=9",
   "html": undefined,
   "status": undefined,
@@ -276,7 +276,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://www.cdc.gov.tw/Bulletin/Detail/BeQ6tY0m4qkMmTRw4hSjtw?typeid=9 incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://www.chinatimes.com/realtimenews/20200521003580-260405 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.chinatimes.com/realtimenews/20200521003580-260405",
   "html": undefined,
   "status": undefined,
@@ -289,7 +289,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://www.chinatimes.com/realtimenews/20200521003580-260405 incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://www.cna.com.tw/news/firstnews/201710160095.aspx 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.cna.com.tw/news/firstnews/201710160095.aspx",
   "html": undefined,
   "status": undefined,
@@ -302,7 +302,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://www.cna.com.tw/news/firstnews/201710160095.aspx incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://www.ettoday.net/news/20200529/1725342.htm?from=fb_et_share 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.ettoday.net/news/20200529/1725342.htm",
   "html": undefined,
   "status": undefined,
@@ -316,7 +316,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://www.ettoday.net/news/20200529/1725342.htm?from=fb_et_share incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://www.facebook.com/PengHuPoliceBureau/ 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.facebook.com/PengHuPoliceBureau/",
   "html": undefined,
   "status": undefined,
@@ -329,7 +329,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://www.facebook.com/PengHuPoliceBureau/ incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://www.facebook.com/events/310005686062432/?acontext=%7B%22action_history%22%3A%22null%22%7D 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.facebook.com/events/310005686062432/?acontext=%7B%22action_history%22%3A%22null%22%7D",
   "html": undefined,
   "status": undefined,
@@ -342,7 +342,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://www.facebook.com/events/310005686062432/?acontext=%7B%22action_history%22%3A%22null%22%7D incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://www.facebook.com/groups/perfectwantan/permalink/1672287442782314/ 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.facebook.com/groups/perfectwantan/permalink/1672287442782314/",
   "html": undefined,
   "status": undefined,
@@ -361,7 +361,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://www.facebook.com/groups/perfectwantan/permalink/1672287442782314/ incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://www.facebook.com/harvest365/videos/2248672155359314/ 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.facebook.com/harvest365/videos/%E5%A0%85%E5%BC%B7%E7%9A%84%E5%9C%B0%E7%93%9C%E6%94%A4_%E9%9B%B7%E5%BA%AD%E7%A6%8E%E5%A4%AB%E5%A9%A6%E8%88%87%E5%BC%B5%E9%98%BF%E5%A7%A8/2248672155359314/",
   "html": undefined,
   "status": undefined,
@@ -375,7 +375,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://www.facebook.com/harvest365/videos/2248672155359314/ incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://www.facebook.com/lawfirmagainstrumour/posts/1703095433340479 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.facebook.com/lawfirmagainstrumour/posts/1703095433340479",
   "html": undefined,
   "status": undefined,
@@ -391,7 +391,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://www.facebook.com/lawfirmagainstrumour/posts/1703095433340479 incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://www.facebook.com/notes/王玨瑋/有關背部cpr的疑義/1306535352726343/ 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.facebook.com/notes/王玨瑋/有關背部cpr的疑義/1306535352726343/",
   "html": undefined,
   "status": undefined,
@@ -406,7 +406,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://www.facebook.com/notes/王玨瑋/有關背部cpr的疑義/1306535352726343/ incomplete? 1`] = `true`;
 
 exports[`parseMeta parses metadata: https://www.facebook.com/permalink.php?story_fbid=1715991915099954&id=100000674860070 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.facebook.com/permalink.php?story_fbid=1715991915099954&id=100000674860070",
   "html": undefined,
   "status": undefined,
@@ -422,7 +422,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://www.facebook.com/permalink.php?story_fbid=1715991915099954&id=100000674860070 incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://www.facebook.com/photo.php?fbid=1886576054694118&set=a.101762089842199.3852.100000252265194&type=3&theater 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.facebook.com/shawn.wang.16/posts/1886577954693928",
   "html": undefined,
   "status": undefined,
@@ -438,7 +438,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://www.facebook.com/photo.php?fbid=1886576054694118&set=a.101762089842199.3852.100000252265194&type=3&theater incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://www.facebook.com/tahrfb/photos/a.146579408691924.28414.119282744754924/1664220360261147/?type=3 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.facebook.com/tahrfb/photos/a.146579408691924/1664220360261147/?type=3",
   "html": undefined,
   "status": undefined,
@@ -455,7 +455,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://www.facebook.com/tahrfb/photos/a.146579408691924.28414.119282744754924/1664220360261147/?type=3 incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://www.mygopen.com/2020/04/tea-water.html 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.mygopen.com/2020/04/tea-water.html",
   "html": undefined,
   "status": undefined,
@@ -468,7 +468,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://www.mygopen.com/2020/04/tea-water.html incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://www.nownews.com/news/20160215/1995254 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.nownews.com/news/20160215/1995254",
   "html": undefined,
   "status": undefined,
@@ -481,7 +481,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://www.nownews.com/news/20160215/1995254 incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://www.storm.mg/article/291947 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.storm.mg/article/291947",
   "html": undefined,
   "status": undefined,
@@ -494,7 +494,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://www.storm.mg/article/291947 incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://www.thenewslens.com/feature/timefortune/65332 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.thenewslens.com/feature/timefortune/65332",
   "html": undefined,
   "status": undefined,
@@ -507,7 +507,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://www.thenewslens.com/feature/timefortune/65332 incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://www.youtube.com/watch?v=gXC6LHkUPnE 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.youtube.com/watch?v=gXC6LHkUPnE",
   "html": "<iframe width=\\"480\\" height=\\"270\\" src=\\"https://www.youtube.com/embed/gXC6LHkUPnE?feature=oembed\\" frameborder=\\"0\\" allow=\\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\\" allowfullscreen></iframe>",
   "status": undefined,
@@ -520,7 +520,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://www.youtube.com/watch?v=gXC6LHkUPnE incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://youtu.be/iuACGKBeuZA 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://www.youtube.com/watch?v=iuACGKBeuZA",
   "html": "<iframe width=\\"480\\" height=\\"270\\" src=\\"https://www.youtube.com/embed/iuACGKBeuZA?feature=oembed\\" frameborder=\\"0\\" allow=\\"accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture\\" allowfullscreen></iframe>",
   "status": undefined,
@@ -533,7 +533,7 @@ ScrapResult {
 exports[`parseMeta parses metadata: https://youtu.be/iuACGKBeuZA incomplete? 1`] = `false`;
 
 exports[`parseMeta parses metadata: https://zh.wikipedia.org/wiki/%E8%A2%AB%E8%AA%8D%E5%AE%9A%E6%98%AF%E5%81%BD%E7%A7%91%E5%AD%B8%E7%9A%84%E4%B8%BB%E9%A1%8C%E5%88%97%E8%A1%A8 1`] = `
-ScrapResult {
+ScrapeResult {
   "canonical": "https://zh.wikipedia.org/wiki/%E8%A2%AB%E8%AA%8D%E5%AE%9A%E6%98%AF%E5%81%BD%E7%A7%91%E5%AD%B8%E7%9A%84%E4%B8%BB%E9%A1%8C%E5%88%97%E8%A1%A8",
   "html": undefined,
   "status": undefined,

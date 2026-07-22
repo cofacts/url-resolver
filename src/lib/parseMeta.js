@@ -1,12 +1,12 @@
 const { unfurl } = require('unfurl.js');
-const ScrapResult = require('./ScrapResult');
+const ScrapeResult = require('./ScrapeResult');
 const ResolveError = require('./ResolveError');
 // eslint-disable-next-line node/no-unpublished-require
 const { ResolveError: ResolveErrorEnum } = require('./resolve_error_pb');
 
 /**
  * @param {string} url
- * @returns {Promise<ScrapResult>}
+ * @returns {Promise<ScrapeResult>}
  */
 async function parseMeta(url) {
   let result;
@@ -22,7 +22,7 @@ async function parseMeta(url) {
       result
     );
 
-  return new ScrapResult({
+  return new ScrapeResult({
     canonical: get('twitter_card', 'url') || get('open_graph', 'url') || url,
     title:
       get('oEmbed', 'title') ||

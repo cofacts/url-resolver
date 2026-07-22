@@ -1,7 +1,7 @@
-const ScrapResult = require('../ScrapResult');
+const ScrapeResult = require('../ScrapeResult');
 
 const getResult = url =>
-  new ScrapResult({
+  new ScrapeResult({
     title: 't',
     summary: 's',
     canonical: url,
