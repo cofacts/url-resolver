@@ -4,6 +4,7 @@ const unshorten = require('../lib/unshorten');
 const normalize = require('../lib/normalize');
 const fetchAndParseMeta = require('../lib/fetchAndParseMeta');
 const { extractStatic, extractFromHtml } = require('../lib/extractStatic');
+const { decodeHtml } = require('../lib/decodeHtml');
 const { platformExtractorFor } = require('../lib/platformExtractors');
 const ResolveError = require('../lib/ResolveError');
 const ScrapeResult = require('../lib/ScrapeResult');
@@ -105,7 +106,7 @@ function resolveUrls(call) {
           if (fetchResult.isIncomplete) {
             const staticResult = page
               ? extractFromHtml({
-                  html: page.buffer.toString(),
+                  html: decodeHtml(page.buffer, page.contentType),
                   status: page.status,
                   finalUrl: page.finalUrl,
                 })

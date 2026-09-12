@@ -34,6 +34,7 @@ const makeRes = ({
       header.toLowerCase() === 'content-type' ? contentType : null,
   },
   text: async () => body,
+  arrayBuffer: async () => Buffer.from(body),
 });
 
 function makeDom({

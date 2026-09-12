@@ -21,12 +21,17 @@ const {
 } = require('../../lib/resolve_error_pb');
 
 // Every fetchAndParseMeta mock that resolves an *incomplete* ScrapeResult
-// must also supply a page with a real buffer: resolveUrls reads
-// `page.buffer.toString()` before handing off to extractFromHtml, mirroring
-// the guarantee that a real fetchAndParseMeta success always carries the
-// fetched bytes (see lib/capturingFetch.js).
+// must also supply a page with a real buffer: resolveUrls decodes
+// `page.buffer` (honoring its charset) before handing off to extractFromHtml,
+// mirroring the guarantee that a real fetchAndParseMeta success always
+// carries the fetched bytes (see lib/capturingFetch.js).
 function emptyPage(url) {
-  return { buffer: Buffer.from(''), status: 200, finalUrl: url };
+  return {
+    buffer: Buffer.from(''),
+    status: 200,
+    contentType: 'text/html',
+    finalUrl: url,
+  };
 }
 
 describe('resolveUrls', () => {

@@ -2,6 +2,7 @@ const fetch = require('node-fetch');
 const { parseHTML } = require('linkedom');
 const { Readability } = require('@mozilla/readability');
 const ScrapeResult = require('./ScrapeResult');
+const { decodeHtml } = require('./decodeHtml');
 const { platformExtractorFor } = require('./platformExtractors');
 const ResolveError = require('./ResolveError');
 // eslint-disable-next-line node/no-unpublished-require
@@ -171,7 +172,8 @@ async function extractStatic(url) {
 
   let html;
   try {
-    html = await res.text();
+    const buf = Buffer.from(await res.arrayBuffer());
+    html = decodeHtml(buf, res.headers.get('content-type'));
   } catch (e) {
     return null;
   }
