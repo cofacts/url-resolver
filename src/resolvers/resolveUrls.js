@@ -2,8 +2,8 @@ const pLimit = require('p-limit');
 const scrape = require('../lib/scrape');
 const unshorten = require('../lib/unshorten');
 const normalize = require('../lib/normalize');
-const parseMeta = require('../lib/parseMeta');
-const extractStatic = require('../lib/extractStatic');
+const fetchAndParseMeta = require('../lib/fetchAndParseMeta');
+const { extractStatic, extractFromHtml } = require('../lib/extractStatic');
 const { platformExtractorFor } = require('../lib/platformExtractors');
 const ResolveError = require('../lib/ResolveError');
 const ScrapeResult = require('../lib/ScrapeResult');
@@ -49,6 +49,10 @@ async function scrapeIfIncomplete(result, staticResult, url) {
   return result;
 }
 
+// Generic URLs: fetch once via fetchAndParseMeta (parseMeta/unfurl performs
+// the real request), then reuse those same bytes for the Readability
+// fallback instead of extractStatic fetching again.
+
 function resolveUrls(call) {
   const { urls } = call.request;
   return Promise.all(
@@ -76,15 +80,40 @@ function resolveUrls(call) {
             unshortened
           );
         } else {
-          fetchResult = await parseMeta(unshortened);
+          // fetchAndParseMeta failing (non-200, non-HTML, network error) is
+          // treated like an incomplete result, not a terminal one: unfurl
+          // folds all of these into one opaque error, and a non-200/wrong-
+          // content-type response can be a bot-detection artifact (the same
+          // reasoning that already makes unshorten's HEAD status non-
+          // authoritative above) — puppeteer, a real browser, may get past
+          // it where a plain fetch could not. This replaces the "no
+          // puppeteer on parseMeta throw" contract this codebase had since
+          // 2020 (PR #70): an artifact of that code's original control flow,
+          // never documented as an intentional policy. fetchResult keeps its
+          // prior (unshortened) canonical on failure, matching the
+          // incremental-assignment pattern above.
+          let page = null;
+          try {
+            const outcome = await fetchAndParseMeta(unshortened);
+            fetchResult = outcome.result;
+            page = outcome.page;
+          } catch (e) {
+            // eslint-disable-next-line no-console
+            console.error('[fetchAndParseMeta]', unshortened, e);
+          }
+
           if (fetchResult.isIncomplete) {
-            const staticResult = await runExtractStatic(unshortened);
+            const staticResult = page
+              ? extractFromHtml({
+                  html: page.buffer.toString(),
+                  status: page.status,
+                  finalUrl: page.finalUrl,
+                })
+              : null;
             if (staticResult) fetchResult.merge(staticResult);
-            fetchResult = await scrapeIfIncomplete(
-              fetchResult,
-              staticResult,
-              unshortened
-            );
+            if (fetchResult.isIncomplete) {
+              fetchResult.merge(await limit(() => scrape(unshortened)));
+            }
           }
         }
 

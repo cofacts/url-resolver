@@ -22,68 +22,16 @@ function pickMeta(document, ...selectors) {
 }
 
 /**
- * Fetch the URL via plain HTTP and run Mozilla Readability inside a
- * server-side linkedom DOM (no script execution, no CSS engine). For
- * SSR-rendered pages this is sufficient and avoids booting puppeteer.
+ * Run Mozilla Readability (or a host-specific extractor) over already-fetched
+ * HTML inside a server-side linkedom DOM (no script execution, no CSS
+ * engine). Pure — no network access — so callers that already have the page
+ * bytes (e.g. reused from parseMeta's fetch) can extract without a second
+ * request.
  *
- * Returns null if the response is not text/html or the DOM cannot be built;
- * throws ResolveError on the same network-level failures as `unshorten` so
- * the caller can decide whether to fall back to puppeteer.
- *
- * @param {string} url
- * @returns {Promise<ScrapeResult|null>}
+ * @param {{html: string, status?: number, finalUrl: string}} page
+ * @returns {ScrapeResult|null} null if the DOM cannot be built
  */
-async function extractStatic(url) {
-  let res;
-  try {
-    res = await fetch(url, {
-      method: 'GET',
-      timeout: FETCH_TIMEOUT,
-      size: MAX_BODY_BYTES,
-      headers: {
-        'User-Agent': USER_AGENT,
-        Accept: 'text/html,application/xhtml+xml',
-      },
-      redirect: 'follow',
-    });
-  } catch (e) {
-    const errorStr = e.toString();
-    switch (true) {
-      case errorStr.startsWith('FetchError: network timeout at:'):
-      case errorStr.endsWith('reason: socket hang up'):
-      case errorStr.includes('reason: connect ECONNREFUSED'):
-        throw new ResolveError(ResolveErrorEnum.NOT_REACHABLE, e);
-      case errorStr.includes(
-        "reason: Hostname/IP doesn't match certificate's altnames"
-      ):
-        throw new ResolveError(ResolveErrorEnum.HTTPS_ERROR, e);
-      default:
-        return null;
-    }
-  }
-
-  const finalUrl = res.url || url;
-  const status = res.status;
-
-  if (!res.ok) {
-    // Consume the body so node-fetch releases the socket back to the pool.
-    if (res.body) res.body.resume();
-    return new ScrapeResult({ canonical: finalUrl, status });
-  }
-
-  const ct = (res.headers.get('content-type') || '').toLowerCase();
-  if (!ct.startsWith('text/html') && !ct.startsWith('application/xhtml')) {
-    if (res.body) res.body.resume();
-    return null;
-  }
-
-  let html;
-  try {
-    html = await res.text();
-  } catch (e) {
-    return null;
-  }
-
+function extractFromHtml({ html, status, finalUrl }) {
   let document;
   try {
     ({ document } = parseHTML(html));
@@ -166,4 +114,69 @@ async function extractStatic(url) {
   });
 }
 
-module.exports = extractStatic;
+/**
+ * Fetch the URL via plain HTTP, then run `extractFromHtml` over the result.
+ * For SSR-rendered pages this is sufficient and avoids booting puppeteer.
+ *
+ * Returns null if the response is not text/html or the DOM cannot be built;
+ * throws ResolveError on the same network-level failures as `unshorten` so
+ * the caller can decide whether to fall back to puppeteer.
+ *
+ * @param {string} url
+ * @returns {Promise<ScrapeResult|null>}
+ */
+async function extractStatic(url) {
+  let res;
+  try {
+    res = await fetch(url, {
+      method: 'GET',
+      timeout: FETCH_TIMEOUT,
+      size: MAX_BODY_BYTES,
+      headers: {
+        'User-Agent': USER_AGENT,
+        Accept: 'text/html,application/xhtml+xml',
+      },
+      redirect: 'follow',
+    });
+  } catch (e) {
+    const errorStr = e.toString();
+    switch (true) {
+      case errorStr.startsWith('FetchError: network timeout at:'):
+      case errorStr.endsWith('reason: socket hang up'):
+      case errorStr.includes('reason: connect ECONNREFUSED'):
+        throw new ResolveError(ResolveErrorEnum.NOT_REACHABLE, e);
+      case errorStr.includes(
+        "reason: Hostname/IP doesn't match certificate's altnames"
+      ):
+        throw new ResolveError(ResolveErrorEnum.HTTPS_ERROR, e);
+      default:
+        return null;
+    }
+  }
+
+  const finalUrl = res.url || url;
+  const status = res.status;
+
+  if (!res.ok) {
+    // Consume the body so node-fetch releases the socket back to the pool.
+    if (res.body) res.body.resume();
+    return new ScrapeResult({ canonical: finalUrl, status });
+  }
+
+  const ct = (res.headers.get('content-type') || '').toLowerCase();
+  if (!ct.startsWith('text/html') && !ct.startsWith('application/xhtml')) {
+    if (res.body) res.body.resume();
+    return null;
+  }
+
+  let html;
+  try {
+    html = await res.text();
+  } catch (e) {
+    return null;
+  }
+
+  return extractFromHtml({ html, status, finalUrl });
+}
+
+module.exports = { extractStatic, extractFromHtml };

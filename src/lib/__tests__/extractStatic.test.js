@@ -13,7 +13,7 @@ jest.mock('linkedom', () => ({
 const fetch = require('node-fetch');
 const { parseHTML } = require('linkedom');
 const { Readability } = require('@mozilla/readability');
-const extractStatic = require('../extractStatic');
+const { extractStatic } = require('../extractStatic');
 const ResolveError = require('../ResolveError');
 
 const URL = 'http://example.com/article';

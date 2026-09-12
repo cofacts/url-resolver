@@ -1,13 +1,16 @@
 jest.mock('../../lib/unshorten');
 jest.mock('../../lib/normalize');
-jest.mock('../../lib/parseMeta');
+jest.mock('../../lib/fetchAndParseMeta');
 jest.mock('../../lib/scrape');
-jest.mock('../../lib/extractStatic', () => jest.fn());
+jest.mock('../../lib/extractStatic', () => ({
+  extractStatic: jest.fn(),
+  extractFromHtml: jest.fn(),
+}));
 
 const ScrapeResult = require('../../lib/ScrapeResult');
 const unshorten = require('../../lib/unshorten');
 const normalize = require('../../lib/normalize');
-const parseMeta = require('../../lib/parseMeta');
+const fetchAndParseMeta = require('../../lib/fetchAndParseMeta');
 
 const scrape = require('../../lib/scrape');
 const { resolveUrls } = require('../resolveUrls');
@@ -17,18 +20,30 @@ const {
   // eslint-disable-next-line node/no-unpublished-require
 } = require('../../lib/resolve_error_pb');
 
+// Every fetchAndParseMeta mock that resolves an *incomplete* ScrapeResult
+// must also supply a page with a real buffer: resolveUrls reads
+// `page.buffer.toString()` before handing off to extractFromHtml, mirroring
+// the guarantee that a real fetchAndParseMeta success always carries the
+// fetched bytes (see lib/capturingFetch.js).
+function emptyPage(url) {
+  return { buffer: Buffer.from(''), status: 200, finalUrl: url };
+}
+
 describe('resolveUrls', () => {
   afterEach(() => {
     normalize.mockClear();
     unshorten.mockClear();
-    parseMeta.mockClear();
+    fetchAndParseMeta.mockClear();
     scrape.mockClear();
   });
 
   it('should resolve multiple valid urls', done => {
     normalize.mockImplementation(url => url);
     unshorten.mockImplementation(async url => ({ url, status: 200 }));
-    parseMeta.mockImplementation(url => Promise.resolve(scrape.getResult(url)));
+    fetchAndParseMeta.mockImplementation(async url => ({
+      result: scrape.getResult(url),
+      page: emptyPage(url),
+    }));
 
     const urls = [
       'some url with complete meta',
@@ -46,7 +61,7 @@ describe('resolveUrls', () => {
       .then(() => {
         expect(normalize).toHaveBeenCalledTimes(urls.length);
         expect(unshorten).toHaveBeenCalledTimes(urls.length);
-        expect(parseMeta).toHaveBeenCalledTimes(urls.length);
+        expect(fetchAndParseMeta).toHaveBeenCalledTimes(urls.length);
         expect(scrape).toHaveBeenCalledTimes(0); // No need to scrape
         expect(call.write).toHaveBeenCalledTimes(urls.length);
         done();
@@ -54,7 +69,10 @@ describe('resolveUrls', () => {
       .catch(err => done.fail(err));
   });
 
-  it('should resolve multiple urls with some invalid ones', done => {
+  it('falls back to puppeteer when fetchAndParseMeta rejects with a plain error', done => {
+    // A metadata-fetch failure (bad status, wrong content-type, network
+    // error) can be a bot-detection artifact a real browser gets past, so
+    // this must NOT skip puppeteer — see the resolveGeneric comment.
     const badUrl = 'bad youtube url';
     const customErrorMsg = 'some error';
 
@@ -63,12 +81,16 @@ describe('resolveUrls', () => {
       url: `unshortened ${url}`,
       status: 200,
     }));
-    parseMeta.mockImplementation(url => {
+    fetchAndParseMeta.mockImplementation(url => {
       if (url === `unshortened ${badUrl}`) {
         return Promise.reject(new Error(customErrorMsg));
       }
-      return Promise.resolve(scrape.getResult(url));
+      return Promise.resolve({
+        result: scrape.getResult(url),
+        page: emptyPage(url),
+      });
     });
+    scrape.mockImplementation(async url => scrape.getResult(url));
 
     const urls = ['some youtube url', badUrl, 'the other youtube url'];
     const call = {
@@ -82,13 +104,14 @@ describe('resolveUrls', () => {
       .then(() => {
         expect(normalize).toHaveBeenCalledTimes(urls.length);
         expect(unshorten).toHaveBeenCalledTimes(urls.length);
-        expect(parseMeta).toHaveBeenCalledTimes(urls.length);
-        expect(scrape).toHaveBeenCalledTimes(0); // No need to scrape
+        expect(fetchAndParseMeta).toHaveBeenCalledTimes(urls.length);
+        // Only the failed URL needs the puppeteer fallback.
+        expect(scrape).toHaveBeenCalledTimes(1);
+        expect(scrape).toHaveBeenCalledWith(`unshortened ${badUrl}`);
         expect(call.write).toHaveBeenCalledTimes(urls.length);
 
-        // Expect:
-        // - "error" key exist with "undefined", since it is not a ResolveError
-        // - canonical URL is still updated by unshortened
+        // The URL still resolves successfully via puppeteer, despite the
+        // metadata-fetch failure.
         expect(
           call.write.mock.calls.find(
             ([scrapResult]) => scrapResult.url === badUrl
@@ -97,12 +120,13 @@ describe('resolveUrls', () => {
 Array [
   Object {
     "canonical": "unshortened bad youtube url",
-    "error": undefined,
     "html": undefined,
     "status": undefined,
-    "summary": undefined,
-    "title": undefined,
-    "topImageUrl": undefined,
+    "successfully_resolved": true,
+    "summary": "s",
+    "title": "t",
+    "topImageUrl": "t",
+    "top_image_url": "t",
     "url": "bad youtube url",
   },
 ]
@@ -122,7 +146,12 @@ Array [
 
       return { url, status: 200 };
     });
-    parseMeta.mockImplementation(url => Promise.resolve(scrape.getResult(url)));
+    fetchAndParseMeta.mockImplementation(url =>
+      Promise.resolve({
+        result: scrape.getResult(url),
+        page: emptyPage(url),
+      })
+    );
 
     const urls = ['some youtube url', badUrl, 'the other youtube url'];
     const call = {
@@ -136,7 +165,7 @@ Array [
       .then(() => {
         expect(normalize).toHaveBeenCalledTimes(urls.length);
         expect(unshorten).toHaveBeenCalledTimes(urls.length);
-        expect(parseMeta).toHaveBeenCalledTimes(
+        expect(fetchAndParseMeta).toHaveBeenCalledTimes(
           urls.length - 1 /* skips not reachable error */
         );
         expect(call.write).toHaveBeenCalledTimes(urls.length);
@@ -174,11 +203,12 @@ Array [
     normalize.mockImplementation(url => url);
     unshorten.mockImplementation(async url => ({ url, status: 200 }));
 
-    // parseMeta returning incomplete result, but with canonical
-    parseMeta.mockImplementation(() =>
-      Promise.resolve(
-        new ScrapeResult({ canonical: 'canonical from parseMeta' })
-      )
+    // fetchAndParseMeta returning an incomplete result, but with canonical
+    fetchAndParseMeta.mockImplementation(url =>
+      Promise.resolve({
+        result: new ScrapeResult({ canonical: 'canonical from parseMeta' }),
+        page: emptyPage(url),
+      })
     );
 
     const emptySummaryUrl = 'url that has no summary';
@@ -206,7 +236,7 @@ Array [
       .then(() => {
         expect(normalize).toHaveBeenCalledTimes(urls.length);
         expect(unshorten).toHaveBeenCalledTimes(urls.length);
-        expect(parseMeta).toHaveBeenCalledTimes(urls.length);
+        expect(fetchAndParseMeta).toHaveBeenCalledTimes(urls.length);
         expect(scrape).toHaveBeenCalledTimes(urls.length);
         expect(call.write).toHaveBeenCalledTimes(urls.length);
 
@@ -231,7 +261,7 @@ Array [
 `);
 
         // Expects failed scrapResult still contain data fetched from
-        // parseMeta mock
+        // fetchAndParseMeta mock
         expect(
           call.write.mock.calls.find(
             ([scrapResult]) => scrapResult.url === scrapFailUrl
@@ -255,18 +285,21 @@ Array [
       .catch(err => done.fail(err));
   });
 
-  it('caps concurrent scrape() at SCRAPE_MAX_CONCURRENCY without limiting parseMeta', done => {
+  it('caps concurrent scrape() at SCRAPE_MAX_CONCURRENCY without limiting fetchAndParseMeta', done => {
     normalize.mockImplementation(url => url);
     unshorten.mockImplementation(async url => ({ url, status: 200 }));
 
-    let parseMetaActive = 0;
-    let parseMetaMax = 0;
-    parseMeta.mockImplementation(async () => {
-      parseMetaActive++;
-      if (parseMetaActive > parseMetaMax) parseMetaMax = parseMetaActive;
+    let fetchActive = 0;
+    let fetchMax = 0;
+    fetchAndParseMeta.mockImplementation(async url => {
+      fetchActive++;
+      if (fetchActive > fetchMax) fetchMax = fetchActive;
       await new Promise(r => setImmediate(r));
-      parseMetaActive--;
-      return new ScrapeResult({ canonical: 'partial' });
+      fetchActive--;
+      return {
+        result: new ScrapeResult({ canonical: 'partial' }),
+        page: emptyPage(url),
+      };
     });
 
     let scrapActive = 0;
@@ -290,7 +323,7 @@ Array [
     resolveUrls(call)
       .then(() => {
         expect(scrapMax).toBe(3);
-        expect(parseMetaMax).toBe(urls.length);
+        expect(fetchMax).toBe(urls.length);
         expect(scrape).toHaveBeenCalledTimes(urls.length);
         expect(call.write).toHaveBeenCalledTimes(urls.length);
         done();
@@ -298,23 +331,28 @@ Array [
       .catch(err => done.fail(err));
   });
 
-  it('trusts extractStatic GET status over unshorten HEAD status', done => {
-    // Site that rejects HEAD with 403 but responds 200 to GET (common with
-    // Cloudflare / WordPress / CDNs). Before the fix, this was misclassified
-    // as terminal and skipped puppeteer + extractStatic entirely.
+  it('reuses the fetchAndParseMeta page bytes for the Readability fallback (no second fetch)', done => {
+    // Single-fetch design: the generic path's static fallback runs on the
+    // SAME bytes fetchAndParseMeta already retrieved, via extractFromHtml —
+    // it never triggers a second network request.
     normalize.mockImplementation(url => url);
-    unshorten.mockImplementation(async url => ({ url, status: 403 }));
-    parseMeta.mockImplementation(() =>
-      Promise.resolve(
-        new ScrapeResult({ canonical: 'canonical from parseMeta' })
-      )
-    );
+    unshorten.mockImplementation(async url => ({ url, status: 200 }));
+    const page = {
+      buffer: Buffer.from('<html></html>'),
+      status: 200,
+      contentType: 'text/html',
+      finalUrl: 'reused',
+    };
+    fetchAndParseMeta.mockImplementation(async () => ({
+      result: new ScrapeResult({ canonical: 'canonical from parseMeta' }),
+      page,
+    }));
     // eslint-disable-next-line global-require
-    const extractStatic = require('../../lib/extractStatic');
-    extractStatic.mockImplementation(
-      async url =>
+    const { extractFromHtml } = require('../../lib/extractStatic');
+    extractFromHtml.mockImplementation(
+      arg =>
         new ScrapeResult({
-          canonical: url,
+          canonical: arg.finalUrl,
           title: 'title from static',
           summary: 'summary from static',
           topImageUrl: 'https://cdn/cover.jpg',
@@ -323,124 +361,57 @@ Array [
     );
 
     const call = {
-      request: { urls: ['head-403-get-200'] },
+      request: { urls: ['generic-incomplete'] },
       write: jest.fn(),
       end: jest.fn(),
     };
     resolveUrls(call)
       .then(() => {
-        expect(extractStatic).toHaveBeenCalledWith('head-403-get-200');
-        // Static result completed the fetch: no puppeteer fallback.
+        expect(extractFromHtml).toHaveBeenCalledWith({
+          html: '<html></html>',
+          status: page.status,
+          finalUrl: page.finalUrl,
+        });
         expect(scrape).toHaveBeenCalledTimes(0);
         const written = call.write.mock.calls[0][0];
         expect(written.title).toBe('title from static');
         expect(written.summary).toBe('summary from static');
-        expect(written.status).toBe(200);
         expect(written.successfully_resolved).toBe(true);
         done();
       })
       .catch(err => done.fail(err));
   });
 
-  it('skips puppeteer when extractStatic GET confirms terminal status', done => {
-    // HEAD reports 200 but the actual GET returns a terminal 500. Puppeteer
-    // cannot recover from a server-error response, so skip the render.
+  it('falls through to puppeteer when extractFromHtml cannot complete the result', done => {
     normalize.mockImplementation(url => url);
     unshorten.mockImplementation(async url => ({ url, status: 200 }));
-    parseMeta.mockImplementation(() =>
-      Promise.resolve(
-        new ScrapeResult({ canonical: 'canonical from parseMeta' })
-      )
-    );
+    fetchAndParseMeta.mockImplementation(async url => ({
+      result: new ScrapeResult({ canonical: 'canonical from parseMeta' }),
+      page: emptyPage(url),
+    }));
     // eslint-disable-next-line global-require
-    const extractStatic = require('../../lib/extractStatic');
-    extractStatic.mockImplementation(
-      async url => new ScrapeResult({ canonical: url, status: 500 })
-    );
-
-    const call = {
-      request: { urls: ['get-500'] },
-      write: jest.fn(),
-      end: jest.fn(),
-    };
-    resolveUrls(call)
-      .then(() => {
-        expect(extractStatic).toHaveBeenCalledWith('get-500');
-        expect(scrape).toHaveBeenCalledTimes(0);
-        const written = call.write.mock.calls[0][0];
-        expect(written.status).toBe(500);
-        expect(written.successfully_resolved).toBe(true);
-        done();
-      })
-      .catch(err => done.fail(err));
-  });
-
-  it('falls through to puppeteer when extractStatic throws (HEAD status ignored)', done => {
-    // HEAD 403 must not short-circuit puppeteer when GET could not
-    // confirm the terminal status (extractStatic threw a network error).
-    normalize.mockImplementation(url => url);
-    unshorten.mockImplementation(async url => ({ url, status: 403 }));
-    parseMeta.mockImplementation(() =>
-      Promise.resolve(
-        new ScrapeResult({ canonical: 'canonical from parseMeta' })
-      )
-    );
-    // eslint-disable-next-line global-require
-    const extractStatic = require('../../lib/extractStatic');
-    extractStatic.mockImplementation(async () => {
-      throw new ResolveError(ResolveErrorEnum.NOT_REACHABLE);
-    });
+    const { extractFromHtml } = require('../../lib/extractStatic');
+    extractFromHtml.mockReturnValue(null);
     scrape.mockImplementation(async url => scrape.getResult(url));
 
     const call = {
-      request: { urls: ['head-403-static-throws'] },
+      request: { urls: ['generic-still-incomplete'] },
       write: jest.fn(),
       end: jest.fn(),
     };
     resolveUrls(call)
       .then(() => {
-        expect(extractStatic).toHaveBeenCalledWith('head-403-static-throws');
         expect(scrape).toHaveBeenCalledTimes(1);
         done();
       })
       .catch(err => done.fail(err));
   });
 
-  it('falls through to puppeteer when extractStatic returns null (non-HTML, HEAD status ignored)', done => {
-    // HEAD 403 must not short-circuit puppeteer when GET responded but
-    // extractStatic returned null (non-HTML content type). We still do
-    // not know whether the URL is renderable.
-    normalize.mockImplementation(url => url);
-    unshorten.mockImplementation(async url => ({ url, status: 403 }));
-    parseMeta.mockImplementation(() =>
-      Promise.resolve(
-        new ScrapeResult({ canonical: 'canonical from parseMeta' })
-      )
-    );
-    // eslint-disable-next-line global-require
-    const extractStatic = require('../../lib/extractStatic');
-    extractStatic.mockImplementation(async () => null);
-    scrape.mockImplementation(async url => scrape.getResult(url));
-
-    const call = {
-      request: { urls: ['head-403-static-null'] },
-      write: jest.fn(),
-      end: jest.fn(),
-    };
-    resolveUrls(call)
-      .then(() => {
-        expect(extractStatic).toHaveBeenCalledWith('head-403-static-null');
-        expect(scrape).toHaveBeenCalledTimes(1);
-        done();
-      })
-      .catch(err => done.fail(err));
-  });
-
-  it('routes platform URLs (Threads) straight to extractStatic, skipping parseMeta', done => {
+  it('routes platform URLs (Threads) straight to extractStatic, skipping fetchAndParseMeta', done => {
     normalize.mockImplementation(url => url);
     unshorten.mockImplementation(async url => ({ url, status: 200 }));
     // eslint-disable-next-line global-require
-    const extractStatic = require('../../lib/extractStatic');
+    const { extractStatic } = require('../../lib/extractStatic');
     extractStatic.mockImplementation(
       async url =>
         new ScrapeResult({
@@ -461,12 +432,62 @@ Array [
     };
     resolveUrls(call)
       .then(() => {
-        expect(parseMeta).toHaveBeenCalledTimes(0);
+        expect(fetchAndParseMeta).toHaveBeenCalledTimes(0);
         expect(extractStatic).toHaveBeenCalledTimes(1);
         expect(scrape).toHaveBeenCalledTimes(0);
         const written = call.write.mock.calls[0][0];
         expect(written.title).toBe('颱風今日動態');
         expect(written.successfully_resolved).toBe(true);
+        done();
+      })
+      .catch(err => done.fail(err));
+  });
+
+  it('skips puppeteer when platform extraction confirms a terminal status', done => {
+    // Platform URLs still go through extractStatic's own fetch (unlike the
+    // generic path), so the terminal-status skip still applies there.
+    normalize.mockImplementation(url => url);
+    unshorten.mockImplementation(async url => ({ url, status: 200 }));
+    // eslint-disable-next-line global-require
+    const { extractStatic } = require('../../lib/extractStatic');
+    extractStatic.mockImplementation(
+      async url => new ScrapeResult({ canonical: url, status: 500 })
+    );
+
+    const call = {
+      request: { urls: ['https://www.threads.com/@user/post/CODE'] },
+      write: jest.fn(),
+      end: jest.fn(),
+    };
+    resolveUrls(call)
+      .then(() => {
+        expect(scrape).toHaveBeenCalledTimes(0);
+        const written = call.write.mock.calls[0][0];
+        expect(written.status).toBe(500);
+        expect(written.successfully_resolved).toBe(true);
+        done();
+      })
+      .catch(err => done.fail(err));
+  });
+
+  it('falls through to puppeteer when platform extraction throws (status unknown)', done => {
+    normalize.mockImplementation(url => url);
+    unshorten.mockImplementation(async url => ({ url, status: 200 }));
+    // eslint-disable-next-line global-require
+    const { extractStatic } = require('../../lib/extractStatic');
+    extractStatic.mockImplementation(async () => {
+      throw new ResolveError(ResolveErrorEnum.NOT_REACHABLE);
+    });
+    scrape.mockImplementation(async url => scrape.getResult(url));
+
+    const call = {
+      request: { urls: ['https://www.threads.com/@user/post/CODE2'] },
+      write: jest.fn(),
+      end: jest.fn(),
+    };
+    resolveUrls(call)
+      .then(() => {
+        expect(scrape).toHaveBeenCalledTimes(1);
         done();
       })
       .catch(err => done.fail(err));
