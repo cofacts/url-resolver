@@ -2,7 +2,8 @@ const pLimit = require('p-limit');
 const scrape = require('../lib/scrape');
 const unshorten = require('../lib/unshorten');
 const normalize = require('../lib/normalize');
-const parseMeta = require('../lib/parseMeta');
+const fetchAndParseMeta = require('../lib/fetchAndParseMeta');
+const { isThreadsUrl } = require('../lib/threadsMetadata');
 const ResolveError = require('../lib/ResolveError');
 const ScrapeResult = require('../lib/ScrapeResult');
 
@@ -18,18 +19,25 @@ function resolveUrls(call) {
     urls.map(async url => {
       let fetchResult;
       try {
-        // Normalize and unshorten URLs, update fetchResult
+        // Resolve the target URL before selecting a metadata extractor.
         const normalized = normalize(url);
         fetchResult = new ScrapeResult({ canonical: normalized });
 
-        const { url: unshortened } = await unshorten(normalized);
-        fetchResult = new ScrapeResult({ canonical: unshortened });
+        const { url: targetUrl } = await unshorten(normalized);
+        fetchResult = new ScrapeResult({ canonical: targetUrl });
 
-        // Fetch info from page
-        fetchResult = await parseMeta(unshortened);
+        try {
+          fetchResult = await fetchAndParseMeta(targetUrl);
+        } catch (e) {
+          // Metadata failures leave the target URL available for browser fallback.
+          // eslint-disable-next-line no-console
+          console.error('[fetchAndParseMeta]', targetUrl, e);
+        }
 
-        if (fetchResult.isIncomplete) {
-          fetchResult.merge(await limit(() => scrape(unshortened)));
+        const isGone =
+          isThreadsUrl(fetchResult.canonical) && fetchResult.status === 410;
+        if (fetchResult.isIncomplete && !isGone) {
+          fetchResult.merge(await limit(() => scrape(targetUrl)));
         }
 
         call.write({
