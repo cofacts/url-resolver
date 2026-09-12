@@ -4,6 +4,7 @@ const unshorten = require('../lib/unshorten');
 const normalize = require('../lib/normalize');
 const parseMeta = require('../lib/parseMeta');
 const extractStatic = require('../lib/extractStatic');
+const { platformExtractorFor } = require('../lib/platformExtractors');
 const ResolveError = require('../lib/ResolveError');
 const ScrapeResult = require('../lib/ScrapeResult');
 
@@ -23,6 +24,31 @@ function isTerminalHttpError(status) {
   );
 }
 
+async function runExtractStatic(url) {
+  try {
+    return await extractStatic(url);
+  } catch (e) {
+    // Static extraction only handles SSR pages; if it fails (network error,
+    // ResolveError, etc.), log and let the caller fall back to puppeteer.
+    // eslint-disable-next-line no-console
+    console.error('[extractStatic]', url, e);
+    return null;
+  }
+}
+
+// Only skip puppeteer when a GET has confirmed a terminal status. unshorten's
+// HEAD status is not authoritative (many sites reject HEAD with 401/403/5xx
+// while serving GET 200), and extractStatic returning null (non-HTML) or
+// throwing (network error) means we do not know — err toward trying puppeteer.
+async function scrapeIfIncomplete(result, staticResult, url) {
+  const hasTerminalGetStatus =
+    staticResult && isTerminalHttpError(staticResult.status);
+  if (result.isIncomplete && !hasTerminalGetStatus) {
+    result.merge(await limit(() => scrape(url)));
+  }
+  return result;
+}
+
 function resolveUrls(call) {
   const { urls } = call.request;
   return Promise.all(
@@ -36,32 +62,29 @@ function resolveUrls(call) {
         const { url: unshortened } = await unshorten(normalized);
         fetchResult = new ScrapeResult({ canonical: unshortened });
 
-        // Fetch info from page
-        fetchResult = await parseMeta(unshortened);
-
-        if (fetchResult.isIncomplete) {
-          let staticResult = null;
-          try {
-            staticResult = await extractStatic(unshortened);
-          } catch (e) {
-            // Static extraction only handles SSR pages; if it fails
-            // (network error, ResolveError, etc.), log and fall back to
-            // the puppeteer path below.
-            // eslint-disable-next-line no-console
-            console.error('[extractStatic]', unshortened, e);
-          }
-          if (staticResult) fetchResult.merge(staticResult);
-
-          // Only skip puppeteer when a GET has confirmed a terminal
-          // status. unshorten's HEAD status is not authoritative (many
-          // sites reject HEAD with 401/403/5xx while serving GET 200),
-          // and extractStatic returning null (non-HTML response) or
-          // throwing (network error) means we simply do not know — err
-          // toward trying puppeteer.
-          const hasTerminalGetStatus =
-            staticResult && isTerminalHttpError(staticResult.status);
-          if (fetchResult.isIncomplete && !hasTerminalGetStatus) {
-            fetchResult.merge(await limit(() => scrape(unshortened)));
+        // Known platforms (e.g. Threads) are fetched and parsed once by
+        // extractStatic, which dispatches to a host-specific extractor. This
+        // skips the parseMeta/unfurl fetch that would otherwise return a
+        // superficially-complete but wrong result (e.g. Threads' og:title
+        // account label). See lib/platformExtractors.js.
+        if (platformExtractorFor(unshortened)) {
+          const staticResult = await runExtractStatic(unshortened);
+          if (staticResult) fetchResult = staticResult;
+          fetchResult = await scrapeIfIncomplete(
+            fetchResult,
+            staticResult,
+            unshortened
+          );
+        } else {
+          fetchResult = await parseMeta(unshortened);
+          if (fetchResult.isIncomplete) {
+            const staticResult = await runExtractStatic(unshortened);
+            if (staticResult) fetchResult.merge(staticResult);
+            fetchResult = await scrapeIfIncomplete(
+              fetchResult,
+              staticResult,
+              unshortened
+            );
           }
         }
 

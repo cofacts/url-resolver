@@ -2,6 +2,7 @@ const fetch = require('node-fetch');
 const { parseHTML } = require('linkedom');
 const { Readability } = require('@mozilla/readability');
 const ScrapeResult = require('./ScrapeResult');
+const { platformExtractorFor } = require('./platformExtractors');
 const ResolveError = require('./ResolveError');
 // eslint-disable-next-line node/no-unpublished-require
 const { ResolveError: ResolveErrorEnum } = require('./resolve_error_pb');
@@ -117,6 +118,22 @@ async function extractStatic(url) {
     } catch (e) {
       topImageUrl = '';
     }
+  }
+
+  // Host-specific extractors (e.g. Threads) read the DOM directly and know
+  // which fields hold the real content, so they replace the generic
+  // Readability + Open Graph pass below. See lib/platformExtractors.js.
+  const platformExtract = platformExtractorFor(finalUrl);
+  if (platformExtract) {
+    const platform = platformExtract(document, html, canonical);
+    return new ScrapeResult({
+      canonical,
+      title: platform.title || undefined,
+      summary: platform.summary || undefined,
+      topImageUrl: platform.topImageUrl || topImageUrl || undefined,
+      html,
+      status,
+    });
   }
 
   let article = null;

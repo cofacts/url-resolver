@@ -435,4 +435,40 @@ Array [
       })
       .catch(err => done.fail(err));
   });
+
+  it('routes platform URLs (Threads) straight to extractStatic, skipping parseMeta', done => {
+    normalize.mockImplementation(url => url);
+    unshorten.mockImplementation(async url => ({ url, status: 200 }));
+    // eslint-disable-next-line global-require
+    const extractStatic = require('../../lib/extractStatic');
+    extractStatic.mockImplementation(
+      async url =>
+        new ScrapeResult({
+          canonical: url,
+          title: '颱風今日動態',
+          summary: '颱風今日動態：侵襲本島機率不足一成',
+          topImageUrl: 'https://cdn.example/img.jpg',
+          status: 200,
+        })
+    );
+
+    const call = {
+      request: {
+        urls: ['https://www.threads.com/@nownews/post/DW72xFwE7p6'],
+      },
+      write: jest.fn(),
+      end: jest.fn(),
+    };
+    resolveUrls(call)
+      .then(() => {
+        expect(parseMeta).toHaveBeenCalledTimes(0);
+        expect(extractStatic).toHaveBeenCalledTimes(1);
+        expect(scrape).toHaveBeenCalledTimes(0);
+        const written = call.write.mock.calls[0][0];
+        expect(written.title).toBe('颱風今日動態');
+        expect(written.successfully_resolved).toBe(true);
+        done();
+      })
+      .catch(err => done.fail(err));
+  });
 });
