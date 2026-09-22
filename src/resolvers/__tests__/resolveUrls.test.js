@@ -448,15 +448,13 @@ Array [
       .catch(err => done.fail(err));
   });
 
-  it('skips puppeteer when platform extraction confirms a terminal status', done => {
-    // Platform URLs still go through extractStatic's own fetch (unlike the
-    // generic path), so the terminal-status skip still applies there.
+  it('skips puppeteer only when platform extraction reports 410 Gone', done => {
     normalize.mockImplementation(url => url);
     unshorten.mockImplementation(async url => ({ url, status: 200 }));
     // eslint-disable-next-line global-require
     const { extractStatic } = require('../../lib/extractStatic');
     extractStatic.mockImplementation(
-      async url => new ScrapeResult({ canonical: url, status: 500 })
+      async url => new ScrapeResult({ canonical: url, status: 410 })
     );
 
     const call = {
@@ -468,8 +466,32 @@ Array [
       .then(() => {
         expect(scrape).toHaveBeenCalledTimes(0);
         const written = call.write.mock.calls[0][0];
-        expect(written.status).toBe(500);
-        expect(written.successfully_resolved).toBe(true);
+        expect(written.status).toBe(410);
+        done();
+      })
+      .catch(err => done.fail(err));
+  });
+
+  it('falls through to puppeteer on 403/5xx from platform extraction', done => {
+    normalize.mockImplementation(url => url);
+    unshorten.mockImplementation(async url => ({ url, status: 200 }));
+    // eslint-disable-next-line global-require
+    const { extractStatic } = require('../../lib/extractStatic');
+    extractStatic.mockImplementation(
+      // A CofactsBot-blocked or rate-limited GET (403/5xx) is not terminal:
+      // a real browser may still succeed, so puppeteer must be tried.
+      async url => new ScrapeResult({ canonical: url, status: 403 })
+    );
+    scrape.mockImplementation(async url => scrape.getResult(url));
+
+    const call = {
+      request: { urls: ['https://www.threads.com/@user/post/CODE'] },
+      write: jest.fn(),
+      end: jest.fn(),
+    };
+    resolveUrls(call)
+      .then(() => {
+        expect(scrape).toHaveBeenCalledTimes(1);
         done();
       })
       .catch(err => done.fail(err));
@@ -493,6 +515,38 @@ Array [
     resolveUrls(call)
       .then(() => {
         expect(scrape).toHaveBeenCalledTimes(1);
+        done();
+      })
+      .catch(err => done.fail(err));
+  });
+
+  it('does not fall through to puppeteer on a Threads login wall', done => {
+    normalize.mockImplementation(url => url);
+    unshorten.mockImplementation(async url => ({ url, status: 200 }));
+    // eslint-disable-next-line global-require
+    const { extractStatic } = require('../../lib/extractStatic');
+    // A login wall resolves to an empty-but-complete result (no undefined
+    // fields); a logged-out puppeteer only re-surfaces the boilerplate, so it
+    // must not be invoked.
+    extractStatic.mockImplementation(
+      async url =>
+        new ScrapeResult({
+          canonical: url,
+          status: 200,
+          title: '',
+          summary: '',
+          topImageUrl: '',
+        })
+    );
+
+    const call = {
+      request: { urls: ['https://www.threads.com/@user/post/CODE3'] },
+      write: jest.fn(),
+      end: jest.fn(),
+    };
+    resolveUrls(call)
+      .then(() => {
+        expect(scrape).toHaveBeenCalledTimes(0);
         done();
       })
       .catch(err => done.fail(err));

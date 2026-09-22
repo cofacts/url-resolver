@@ -15,16 +15,6 @@ const SCRAPE_MAX_CONCURRENCY =
 // Server-wide cap on concurrent scrape operations to bound puppeteer memory.
 const limit = pLimit(SCRAPE_MAX_CONCURRENCY);
 
-function isTerminalHttpError(status) {
-  return (
-    status >= 500 ||
-    status === 401 ||
-    status === 403 ||
-    status === 410 ||
-    status === 451
-  );
-}
-
 async function runExtractStatic(url) {
   try {
     return await extractStatic(url);
@@ -37,14 +27,15 @@ async function runExtractStatic(url) {
   }
 }
 
-// Only skip puppeteer when a GET has confirmed a terminal status. unshorten's
-// HEAD status is not authoritative (many sites reject HEAD with 401/403/5xx
-// while serving GET 200), and extractStatic returning null (non-HTML) or
-// throwing (network error) means we do not know — err toward trying puppeteer.
+// Skip puppeteer only when the GET confirmed the target is permanently gone:
+// HTTP 410, including the synthesized 410 for deleted Threads posts. Other
+// non-2xx statuses are NOT terminal. 401/403 are often just the CofactsBot UA
+// being blocked or rate-limited, and 5xx is often transient, so a real browser
+// may still succeed where a plain fetch could not. unshorten's HEAD status is
+// likewise not authoritative here.
 async function scrapeIfIncomplete(result, staticResult, url) {
-  const hasTerminalGetStatus =
-    staticResult && isTerminalHttpError(staticResult.status);
-  if (result.isIncomplete && !hasTerminalGetStatus) {
+  const isGone = staticResult && staticResult.status === 410;
+  if (result.isIncomplete && !isGone) {
     result.merge(await limit(() => scrape(url)));
   }
   return result;
@@ -53,6 +44,38 @@ async function scrapeIfIncomplete(result, staticResult, url) {
 // Generic URLs: fetch once via fetchAndParseMeta (parseMeta/unfurl performs
 // the real request), then reuse those same bytes for the Readability
 // fallback instead of extractStatic fetching again.
+
+// One structured line per resolved URL. The URL DB only keeps the final
+// fields (and an unreliable status), so this is the only place to audit the
+// parse outcome per host and spot which sites extract poorly and may need a
+// dedicated extractor. Title is truncated; summary is logged as a length so
+// article bodies do not flood the logs.
+function logResolution(url, result, error) {
+  const r = result || {};
+  let host = '';
+  try {
+    host = new URL(r.canonical || url).hostname;
+  } catch (e) {
+    host = '';
+  }
+  // eslint-disable-next-line no-console
+  console.info(
+    '[resolve]',
+    JSON.stringify({
+      url,
+      canonical: r.canonical,
+      host,
+      title: (r.title || '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 80),
+      summaryLen: (r.summary || '').length,
+      image: Boolean(r.topImageUrl),
+      status: r.status,
+      error,
+    })
+  );
+}
 
 function resolveUrls(call) {
   const { urls } = call.request;
@@ -118,6 +141,7 @@ function resolveUrls(call) {
           }
         }
 
+        logResolution(url, fetchResult);
         call.write({
           ...fetchResult,
           top_image_url: fetchResult.topImageUrl,
@@ -131,6 +155,7 @@ function resolveUrls(call) {
         if (e instanceof ResolveError) {
           errMsg = e.returnedError;
         }
+        logResolution(url, fetchResult, errMsg);
         call.write({
           ...fetchResult, // Still try return available fetch result
           url,

@@ -13,7 +13,7 @@ jest.mock('linkedom', () => ({
 const fetch = require('node-fetch');
 const { parseHTML } = require('linkedom');
 const { Readability } = require('@mozilla/readability');
-const { extractStatic } = require('../extractStatic');
+const { extractStatic, extractFromHtml } = require('../extractStatic');
 const ResolveError = require('../ResolveError');
 
 const URL = 'http://example.com/article';
@@ -257,5 +257,53 @@ describe('extractStatic', () => {
 
     await extractStatic(URL);
     expect(fetch.mock.calls[0][1].headers['User-Agent']).toMatch(/CofactsBot/);
+  });
+
+  it('maps an unavailable Threads post to 410 Gone with no content', () => {
+    parseHTML.mockImplementationOnce(() => makeDom());
+    const result = extractFromHtml({
+      html: '<html></html>',
+      status: 200,
+      finalUrl: 'https://www.threads.com/?error=invalid_post',
+    });
+    expect(result.status).toBe(410);
+    expect(result.title).toBeUndefined();
+    expect(result.summary).toBeUndefined();
+    expect(result.topImageUrl).toBeUndefined();
+  });
+
+  it('returns an incomplete result for a Threads login wall so puppeteer runs', () => {
+    const finalUrl = 'https://www.threads.com/@someone/post/CODE';
+    parseHTML.mockImplementationOnce(() =>
+      makeDom({ ogTitle: 'Threads • Log in' })
+    );
+    const result = extractFromHtml({
+      html: '<html></html>',
+      status: 200,
+      finalUrl,
+    });
+    expect(result.title).toBeUndefined();
+    expect(result.summary).toBeUndefined();
+    expect(result.topImageUrl).toBeUndefined();
+    expect(result.status).toBe(200);
+    expect(result.isIncomplete).toBe(true);
+  });
+
+  it('canonicalizes a platform result on the final post URL, not the page canonical', () => {
+    const finalUrl = 'https://www.threads.com/@nownews/post/DW72xFwE7p6';
+    // The page declares the homepage as its canonical; the post URL must win.
+    parseHTML.mockImplementationOnce(() =>
+      makeDom({
+        canonical: 'https://www.threads.com/',
+        ogTitle: 'NOWnews (@nownews) on Threads',
+      })
+    );
+    const result = extractFromHtml({
+      html: '<html></html>',
+      status: 200,
+      finalUrl,
+    });
+    expect(result.title).toBe('NOWnews (@nownews) on Threads');
+    expect(result.canonical).toBe(finalUrl);
   });
 });

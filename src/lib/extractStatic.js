@@ -71,12 +71,44 @@ function extractFromHtml({ html, status, finalUrl }) {
 
   // Host-specific extractors (e.g. Threads) read the DOM directly and know
   // which fields hold the real content, so they replace the generic
-  // Readability + Open Graph pass below. See lib/platformExtractors.js.
+  // Readability + Open Graph pass below. They are keyed and canonicalized on
+  // the final post URL, not the page's self-declared canonical: a Threads
+  // login/Home shell declares the homepage canonical, which would otherwise
+  // hide the post shortcode and overwrite the post URL. See platformExtractors.
   const platformExtract = platformExtractorFor(finalUrl);
   if (platformExtract) {
-    const platform = platformExtract(document, html, canonical);
+    const platform = platformExtract(document, html, finalUrl);
+
+    // Observability: the URL DB stores only the resolved fields (and an
+    // unreliable status), not the redirect target or the classification. Emit
+    // one structured line per platform resolution so the parse-outcome
+    // distribution, plus any ?error= code beyond invalid_post, stays auditable
+    // from service logs.
+    let errorParam = null;
+    try {
+      errorParam = new URL(finalUrl).searchParams.get('error');
+    } catch (e) {
+      errorParam = null;
+    }
+    const platformClass = platform.isUnavailable
+      ? 'unavailable'
+      : platform.title || platform.summary
+      ? 'content'
+      : 'empty';
+    // eslint-disable-next-line no-console
+    console.info(
+      '[platform]',
+      JSON.stringify({ finalUrl, class: platformClass, error: errorParam })
+    );
+
+    if (platform.isUnavailable) {
+      // The target post is gone (Threads 302s to ?error=invalid_post). Report
+      // 410 Gone so the caller treats it as terminal and skips puppeteer,
+      // instead of surfacing the login-wall boilerplate as content.
+      return new ScrapeResult({ canonical: finalUrl, status: 410, html });
+    }
     return new ScrapeResult({
-      canonical,
+      canonical: finalUrl,
       title: platform.title || undefined,
       summary: platform.summary || undefined,
       topImageUrl: platform.topImageUrl || topImageUrl || undefined,
