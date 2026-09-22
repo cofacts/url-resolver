@@ -26,6 +26,19 @@ let isBrowserClosing = false;
 
 const isCloudflare = (process.env.BROWSER_BACKEND || 'local') === 'cloudflare';
 
+// Headless Chrome's UA contains "HeadlessChrome/<ver>", a token many anti-bot
+// systems block. Strip it from the browser's own UA so the version always
+// matches the real binary. SCRAPE_USER_AGENT overrides with a custom string.
+const USER_AGENT_OVERRIDE = process.env.SCRAPE_USER_AGENT;
+let cachedUserAgent;
+async function resolveUserAgent(browser) {
+  if (USER_AGENT_OVERRIDE) return USER_AGENT_OVERRIDE;
+  if (cachedUserAgent) return cachedUserAgent;
+  const raw = await browser.userAgent();
+  cachedUserAgent = raw.replace('HeadlessChrome', 'Chrome');
+  return cachedUserAgent;
+}
+
 /**
  * Launch Google Chrome and sets browserPromise
  */
@@ -117,6 +130,7 @@ async function stop(page) {
 async function scrape(url) {
   const browser = await getBrowser();
   const page = await browser.newPage();
+  await page.setUserAgent(await resolveUserAgent(browser));
 
   if (SCRAPE_BLOCK_RESOURCES.length > 0) {
     await page.setRequestInterception(true);
@@ -225,6 +239,7 @@ async function scrape(url) {
 
   // Set content to the HTML that was loaded by JS before
   //
+  let setContentFailed = false;
   try {
     await page.setContent(html);
     await page.waitForNavigation({
@@ -232,9 +247,31 @@ async function scrape(url) {
       timeout: PROCESSING_TIMEOUT,
     });
   } catch (e) {
+    // TimeoutError means the re-injected DOM never settled but is still set.
     if (!(e instanceof TimeoutError)) {
-      await page.close();
-      throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR, e);
+      // setContent runs document.open() then document.write(); a Trusted-Types
+      // CSP (e.g. YouTube) rejects the write AFTER open() has already emptied
+      // the document, so the reloaded DOM above is gone. Reload once more (JS
+      // still disabled) to restore the SSR DOM before extracting.
+      setContentFailed = true;
+      rollbar.warn('[scrape] setContent failed; restoring SSR DOM', {
+        url,
+        error: e.toString(),
+      });
+      try {
+        await page.reload({
+          waitUntil: 'networkidle0',
+          timeout: PROCESSING_TIMEOUT,
+        });
+      } catch (reloadError) {
+        if (!(reloadError instanceof TimeoutError)) {
+          await page.close();
+          throw new ResolveError(
+            ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR,
+            reloadError
+          );
+        }
+      }
     }
   }
 
@@ -268,6 +305,15 @@ async function scrape(url) {
       ResolveErrorEnum.UNSUPPORTED,
       new Error(`Cannot navigate to ${url}`)
     );
+  }
+
+  // A navigation that ended on Chromium's internal error page (e.g. the restore
+  // reload was disconnected) exposes a non-empty error-page title such as the
+  // bare host name, which would otherwise pass the empty-content check below.
+  // It carries no real content, so report it as a scrape failure.
+  if (canonical.startsWith('chrome-error://')) {
+    await page.close();
+    throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR);
   }
 
   let topImageUrl = '';
@@ -334,6 +380,18 @@ async function scrape(url) {
 
   // If we still cannot get resultArticle, throw
   if (!resultArticle) {
+    throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR);
+  }
+
+  // A setContent failure that left an empty restored DOM must not surface as a
+  // status:200 complete-but-empty result: report it as a scrape failure like
+  // the pre-tolerance behavior did, so the caller never persists a phantom
+  // success.
+  if (
+    setContentFailed &&
+    !resultArticle.title &&
+    !(resultArticle.textContent || '').trim()
+  ) {
     throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR);
   }
 
