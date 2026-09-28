@@ -21,6 +21,7 @@ describe('scrape request interception', () => {
     requestHandler = undefined;
     mockPage = {
       setRequestInterception: jest.fn().mockResolvedValue(),
+      setUserAgent: jest.fn().mockResolvedValue(),
       on: jest.fn((event, handler) => {
         if (event === 'request') requestHandler = handler;
       }),
@@ -45,6 +46,11 @@ describe('scrape request interception', () => {
     };
     mockBrowser = {
       newPage: jest.fn().mockResolvedValue(mockPage),
+      userAgent: jest
+        .fn()
+        .mockResolvedValue(
+          'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36'
+        ),
       on: jest.fn(),
     };
   }
@@ -145,6 +151,82 @@ describe('scrape request interception', () => {
 
     await new Promise(r => setImmediate(r));
   });
+
+  it('sets a desktop Chrome UA with the Headless token stripped', async () => {
+    const scrape = require('../scrape');
+    await scrape('https://example.test/');
+
+    expect(mockPage.setUserAgent).toHaveBeenCalledTimes(1);
+    const ua = mockPage.setUserAgent.mock.calls[0][0];
+    expect(ua).toContain('Chrome/148.0.0.0');
+    expect(ua).not.toContain('HeadlessChrome');
+  });
+
+  it('honors SCRAPE_USER_AGENT override', async () => {
+    process.env.SCRAPE_USER_AGENT = 'MyBot/9.9';
+    const scrape = require('../scrape');
+    await scrape('https://example.test/');
+
+    expect(mockPage.setUserAgent).toHaveBeenCalledWith('MyBot/9.9');
+    expect(mockBrowser.userAgent).not.toHaveBeenCalled();
+  });
+
+  it('reloads the SSR DOM and extracts it when setContent fails (Trusted-Types CSP)', async () => {
+    // setContent's document.open() empties the DOM before document.write() is
+    // rejected, so the earlier reloaded DOM is gone. scrape must reload once
+    // more to restore the SSR DOM (the first reload is the JS-disabled one).
+    mockPage.setContent.mockRejectedValueOnce(
+      new Error("Failed to execute 'write' on 'Document': requires TrustedHTML")
+    );
+    const scrape = require('../scrape');
+    const result = await scrape('https://example.test/');
+
+    expect(mockPage.reload).toHaveBeenCalledTimes(2);
+    expect(result.title).toBe('T');
+    expect(result.canonical).toBe('https://canonical.test/');
+    expect(mockPage.close).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws when setContent fails and the restored DOM is empty (no phantom success)', async () => {
+    mockPage.setContent.mockRejectedValueOnce(
+      new Error("Failed to execute 'write' on 'Document': requires TrustedHTML")
+    );
+    mockPage.evaluate = jest
+      .fn()
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce('https://example.test/')
+      .mockResolvedValueOnce('')
+      .mockResolvedValueOnce({ title: '', textContent: '' });
+    const scrape = require('../scrape');
+    const ResolveError = require('../ResolveError');
+
+    await expect(scrape('https://example.test/')).rejects.toBeInstanceOf(
+      ResolveError
+    );
+    expect(mockPage.reload).toHaveBeenCalledTimes(2);
+  });
+
+  it('throws when the restore lands on a Chromium internal error page', async () => {
+    mockPage.setContent.mockRejectedValueOnce(
+      new Error("Failed to execute 'write' on 'Document': requires TrustedHTML")
+    );
+    // The restore reload disconnects and Chrome shows chrome-error://, whose
+    // title is the bare host name (non-empty) — must not become a success.
+    mockPage.evaluate = jest
+      .fn()
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce('chrome-error://chromewebdata/');
+    const scrape = require('../scrape');
+    const ResolveError = require('../ResolveError');
+
+    await expect(scrape('https://example.test/')).rejects.toBeInstanceOf(
+      ResolveError
+    );
+  });
 });
 
 describe('scrape backend lifecycle', () => {
@@ -156,6 +238,7 @@ describe('scrape backend lifecycle', () => {
     return {
       newPage: jest.fn().mockResolvedValue({
         setRequestInterception: jest.fn().mockResolvedValue(),
+        setUserAgent: jest.fn().mockResolvedValue(),
         on: jest.fn(),
         goto: jest.fn().mockResolvedValue({
           headers: () => ({ 'content-type': 'text/html' }),
@@ -176,6 +259,11 @@ describe('scrape backend lifecycle', () => {
           .mockResolvedValueOnce({ title: 'T', textContent: 'Body' }),
         close: jest.fn().mockResolvedValue(),
       }),
+      userAgent: jest
+        .fn()
+        .mockResolvedValue(
+          'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36'
+        ),
       on: jest.fn(),
     };
   }

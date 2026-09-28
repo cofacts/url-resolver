@@ -6,12 +6,15 @@ const { ResolveError: ResolveErrorEnum } = require('./resolve_error_pb');
 
 /**
  * @param {string} url
+ * @param {?Function} [fetchOverride] optional unfurl-compatible fetch, used to
+ *   reuse an already-fetched response instead of unfurl performing its own
+ *   request. See lib/capturingFetch.js.
  * @returns {Promise<ScrapeResult>}
  */
-async function parseMeta(url) {
+async function parseMeta(url, fetchOverride) {
   let result;
   try {
-    result = await unfurl(url);
+    result = await unfurl(url, fetchOverride ? { fetch: fetchOverride } : {});
   } catch (e) {
     throw new ResolveError(ResolveErrorEnum.UNKNOWN_UNFURL_ERROR, e);
   }
