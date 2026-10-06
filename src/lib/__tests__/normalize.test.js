@@ -7,13 +7,14 @@ describe('normalize', () => {
     expect(normalize(url)).toBe(expected);
   });
 
-  it('should be able to normalize FB pages', () => {
-    const urls = [
-      'http://www.facebook.com/pages/blablablabla',
-      'https://www.facebook.com/pages/blablablabla',
-    ];
-    const expected = 'https://m.facebook.com/pages/blablablabla';
-    urls.map(url => expect(normalize(url)).toBe(expected));
+  it('should keep FB pages on the www host', () => {
+    // Must NOT rewrite to m.facebook.com: the mobile host login-walls bots.
+    expect(normalize('https://www.facebook.com/pages/blablablabla')).toBe(
+      'https://www.facebook.com/pages/blablablabla'
+    );
+    expect(normalize('http://www.facebook.com/pages/blablablabla')).toBe(
+      'http://www.facebook.com/pages/blablablabla'
+    );
   });
 
   it('should be able to remove FB click ID', () => {
