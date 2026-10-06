@@ -1,6 +1,6 @@
 const pLimit = require('p-limit');
 const scrape = require('../lib/scrape');
-const unshorten = require('../lib/unshorten');
+const resolveTargetUrl = require('../lib/resolveTargetUrl');
 const normalize = require('../lib/normalize');
 const fetchAndParseMeta = require('../lib/fetchAndParseMeta');
 const { isThreadsUrl } = require('../lib/threadsMetadata');
@@ -55,7 +55,7 @@ function resolveUrls(call) {
         const normalized = normalize(url);
         fetchResult = new ScrapeResult({ canonical: normalized });
 
-        const { url: targetUrl } = await unshorten(normalized);
+        const targetUrl = await resolveTargetUrl(normalized);
         fetchResult = new ScrapeResult({ canonical: targetUrl });
 
         try {
