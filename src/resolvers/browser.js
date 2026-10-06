@@ -1,7 +1,11 @@
-const { getBrowserPromise } = require('../lib/scrape');
+const scrape = require('../lib/scrape');
 
 const getBrowserStats = async (_, callback) => {
-  const browser = await getBrowserPromise();
+  const browser = await scrape.getBrowserPromise();
+  if (!browser) {
+    callback(null, { version: '', pages: [], page_count: 0 });
+    return;
+  }
   const rawPages = await browser.pages();
   const pages = [];
   for (let i = 0; i < rawPages.length; i += 1) {

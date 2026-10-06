@@ -1,9 +1,15 @@
 jest.mock('../../lib/scrape');
+const scrape = require('../../lib/scrape');
 const { getBrowserStats } = require('../browser');
 const { pageCount } = require('../../lib/scrape');
 // pageCount is only for testing; it doesn't exist in the real module.
 
 describe('browser', () => {
+  const originalGetBrowserPromise = scrape.getBrowserPromise;
+  afterEach(() => {
+    scrape.getBrowserPromise = originalGetBrowserPromise;
+  });
+
   it('should get browser stats', done => {
     const callback = (_, res) => {
       expect(res).toHaveProperty('version');
@@ -25,6 +31,18 @@ describe('browser', () => {
       metricsProperties.map(property =>
         expect(metrics).toHaveProperty(property)
       );
+      done();
+    };
+    getBrowserStats(undefined, callback);
+  });
+
+  it('returns empty stats when no browser session is active', done => {
+    scrape.getBrowserPromise = () => Promise.resolve(undefined);
+    const callback = (err, res) => {
+      expect(err).toBeNull();
+      expect(res.page_count).toBe(0);
+      expect(res.pages).toEqual([]);
+      expect(res).toHaveProperty('version');
       done();
     };
     getBrowserStats(undefined, callback);
