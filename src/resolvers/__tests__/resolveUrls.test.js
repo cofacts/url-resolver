@@ -17,6 +17,27 @@ const {
 } = require('../../lib/resolve_error_pb');
 
 describe('resolveUrls', () => {
+  it('reports the browser error, not UNKNOWN_UNFURL_ERROR, when both stages fail', async () => {
+    normalize.mockImplementation(url => url);
+    unshorten.mockImplementation(async url => ({ url, status: 200 }));
+    fetchAndParseMeta.mockRejectedValue(
+      new ResolveError(ResolveErrorEnum.UNKNOWN_UNFURL_ERROR)
+    );
+    scrape.mockRejectedValue(
+      new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR)
+    );
+    const call = {
+      request: { urls: ['https://example.test/'] },
+      write: jest.fn(),
+      end: jest.fn(),
+    };
+    await resolveUrls(call);
+    expect(call.write.mock.calls[0][0].error).toBe(
+      ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR
+    );
+    expect(call.write.mock.calls[0][0].successfully_resolved).toBeUndefined();
+    expect(scrape).toHaveBeenCalledTimes(1);
+  });
   afterEach(() => {
     normalize.mockClear();
     unshorten.mockClear();
