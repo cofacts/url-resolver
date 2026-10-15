@@ -10,5 +10,8 @@ enum ResolveError {
   UNSUPPORTED = 4; // File download, etc
   HTTPS_ERROR = 5; // HTTPS related error, such as invalid certificates
   UNKNOWN_SCRAPE_ERROR = 6;
+  // Legacy metadata-parser error. resolveUrls now retries metadata failures
+  // with browser scraping, returning its result/error instead of this value.
+  // Still used internally by parseMeta; retain number 7 for wire compatibility.
   UNKNOWN_UNFURL_ERROR = 7;
 }

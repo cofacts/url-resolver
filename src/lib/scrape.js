@@ -26,6 +26,19 @@ let isBrowserClosing = false;
 
 const isCloudflare = (process.env.BROWSER_BACKEND || 'local') === 'cloudflare';
 
+// Headless Chrome's UA contains "HeadlessChrome/<ver>", a token many anti-bot
+// systems block. Strip it from the browser's own UA so the version always
+// matches the real binary. SCRAPE_USER_AGENT overrides with a custom string.
+const USER_AGENT_OVERRIDE = process.env.SCRAPE_USER_AGENT;
+let cachedUserAgent;
+async function resolveUserAgent(browser) {
+  if (USER_AGENT_OVERRIDE) return USER_AGENT_OVERRIDE;
+  if (cachedUserAgent) return cachedUserAgent;
+  const raw = await browser.userAgent();
+  cachedUserAgent = raw.replace('HeadlessChrome', 'Chrome');
+  return cachedUserAgent;
+}
+
 /**
  * Launch Google Chrome and sets browserPromise
  */
@@ -116,8 +129,19 @@ async function stop(page) {
  */
 async function scrape(url) {
   const browser = await getBrowser();
+  const userAgent = await resolveUserAgent(browser);
   const page = await browser.newPage();
+  try {
+    await page.setUserAgent(userAgent);
+    return await scrapePage(url, page);
+  } finally {
+    // Cleanup must cover setup failures too, without masking the scrape error
+    // when the browser has already disconnected.
+    await page.close().catch(() => {});
+  }
+}
 
+async function scrapePage(url, page) {
   if (SCRAPE_BLOCK_RESOURCES.length > 0) {
     await page.setRequestInterception(true);
     page.on('request', req => {
@@ -153,23 +177,19 @@ async function scrape(url) {
         break; // Timeout is not a big deal, keep processing
 
       case errorStr.startsWith('Error: Protocol error'):
-        await page.close();
         throw new ResolveError(ResolveErrorEnum.INVALID_URL, e);
 
       case errorStr.startsWith('Error: net::ERR_NAME_NOT_RESOLVED'):
-        await page.close();
         throw new ResolveError(ResolveErrorEnum.NAME_NOT_RESOLVED, e);
 
       case errorStr.startsWith('Error: net::ERR_ABORTED'):
         // See: https://github.com/GoogleChrome/puppeteer/issues/2794#issuecomment-400512765
-        await page.close();
         throw new ResolveError(ResolveErrorEnum.UNSUPPORTED, e);
 
       default:
         rollbar.error(e, '[scrape] page.goto() Error', { url });
 
         // unkown error, directly return
-        await page.close();
         throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR, e);
     }
   }
@@ -177,7 +197,6 @@ async function scrape(url) {
     const contentType = response.headers()['content-type'];
     if (contentType && !contentType.toLowerCase().startsWith('text/html')) {
       // Fixes: https://rollbar.com/mrorz/url-resolver/items/16/
-      await page.close();
       throw new ResolveError(
         ResolveErrorEnum.UNSUPPORTED,
         new Error(`Unsupported content type: ${contentType}`)
@@ -195,7 +214,6 @@ async function scrape(url) {
     html = await page.content();
   } catch (e) {
     // Maybe context destroyed error (caused by JS / HTML redirects)
-    await page.close();
     throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR, e);
   }
 
@@ -216,7 +234,6 @@ async function scrape(url) {
     });
   } catch (e) {
     if (!(e instanceof TimeoutError)) {
-      await page.close();
       throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR, e);
     }
   }
@@ -225,6 +242,7 @@ async function scrape(url) {
 
   // Set content to the HTML that was loaded by JS before
   //
+  let setContentFailed = false;
   try {
     await page.setContent(html);
     await page.waitForNavigation({
@@ -232,9 +250,30 @@ async function scrape(url) {
       timeout: PROCESSING_TIMEOUT,
     });
   } catch (e) {
+    // TimeoutError means the re-injected DOM never settled but is still set.
     if (!(e instanceof TimeoutError)) {
-      await page.close();
-      throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR, e);
+      // setContent runs document.open() then document.write(); a Trusted-Types
+      // CSP (e.g. YouTube) rejects the write AFTER open() has already emptied
+      // the document, so the reloaded DOM above is gone. Reload once more (JS
+      // still disabled) to restore the SSR DOM before extracting.
+      setContentFailed = true;
+      rollbar.warn('[scrape] setContent failed; restoring SSR DOM', {
+        url,
+        error: e.toString(),
+      });
+      try {
+        await page.reload({
+          waitUntil: 'networkidle0',
+          timeout: PROCESSING_TIMEOUT,
+        });
+      } catch (reloadError) {
+        if (!(reloadError instanceof TimeoutError)) {
+          throw new ResolveError(
+            ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR,
+            reloadError
+          );
+        }
+      }
     }
   }
 
@@ -257,17 +296,23 @@ async function scrape(url) {
     });
   } catch (e) {
     // Maybe context destroyed error (caused by JS / HTML redirects)
-    await page.close();
     throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR, e);
   }
 
   // For URLs that cannot navigate properly
   if (canonical === 'about:blank') {
-    await page.close();
     throw new ResolveError(
       ResolveErrorEnum.UNSUPPORTED,
       new Error(`Cannot navigate to ${url}`)
     );
+  }
+
+  // A navigation that ended on Chromium's internal error page (e.g. the restore
+  // reload was disconnected) exposes a non-empty error-page title such as the
+  // bare host name, which would otherwise pass the empty-content check below.
+  // It carries no real content, so report it as a scrape failure.
+  if (canonical.startsWith('chrome-error://')) {
+    throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR);
   }
 
   let topImageUrl = '';
@@ -330,10 +375,20 @@ async function scrape(url) {
     }
   }
 
-  await page.close();
-
   // If we still cannot get resultArticle, throw
   if (!resultArticle) {
+    throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR);
+  }
+
+  // A setContent failure that left an empty restored DOM must not surface as a
+  // status:200 complete-but-empty result: report it as a scrape failure like
+  // the pre-tolerance behavior did, so the caller never persists a phantom
+  // success.
+  if (
+    setContentFailed &&
+    !resultArticle.title &&
+    !(resultArticle.textContent || '').trim()
+  ) {
     throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR);
   }
 
