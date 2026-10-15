@@ -129,9 +129,19 @@ async function stop(page) {
  */
 async function scrape(url) {
   const browser = await getBrowser();
+  const userAgent = await resolveUserAgent(browser);
   const page = await browser.newPage();
-  await page.setUserAgent(await resolveUserAgent(browser));
+  try {
+    await page.setUserAgent(userAgent);
+    return await scrapePage(url, page);
+  } finally {
+    // Cleanup must cover setup failures too, without masking the scrape error
+    // when the browser has already disconnected.
+    await page.close().catch(() => {});
+  }
+}
 
+async function scrapePage(url, page) {
   if (SCRAPE_BLOCK_RESOURCES.length > 0) {
     await page.setRequestInterception(true);
     page.on('request', req => {
@@ -167,23 +177,19 @@ async function scrape(url) {
         break; // Timeout is not a big deal, keep processing
 
       case errorStr.startsWith('Error: Protocol error'):
-        await page.close();
         throw new ResolveError(ResolveErrorEnum.INVALID_URL, e);
 
       case errorStr.startsWith('Error: net::ERR_NAME_NOT_RESOLVED'):
-        await page.close();
         throw new ResolveError(ResolveErrorEnum.NAME_NOT_RESOLVED, e);
 
       case errorStr.startsWith('Error: net::ERR_ABORTED'):
         // See: https://github.com/GoogleChrome/puppeteer/issues/2794#issuecomment-400512765
-        await page.close();
         throw new ResolveError(ResolveErrorEnum.UNSUPPORTED, e);
 
       default:
         rollbar.error(e, '[scrape] page.goto() Error', { url });
 
         // unkown error, directly return
-        await page.close();
         throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR, e);
     }
   }
@@ -191,7 +197,6 @@ async function scrape(url) {
     const contentType = response.headers()['content-type'];
     if (contentType && !contentType.toLowerCase().startsWith('text/html')) {
       // Fixes: https://rollbar.com/mrorz/url-resolver/items/16/
-      await page.close();
       throw new ResolveError(
         ResolveErrorEnum.UNSUPPORTED,
         new Error(`Unsupported content type: ${contentType}`)
@@ -209,7 +214,6 @@ async function scrape(url) {
     html = await page.content();
   } catch (e) {
     // Maybe context destroyed error (caused by JS / HTML redirects)
-    await page.close();
     throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR, e);
   }
 
@@ -230,7 +234,6 @@ async function scrape(url) {
     });
   } catch (e) {
     if (!(e instanceof TimeoutError)) {
-      await page.close();
       throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR, e);
     }
   }
@@ -265,7 +268,6 @@ async function scrape(url) {
         });
       } catch (reloadError) {
         if (!(reloadError instanceof TimeoutError)) {
-          await page.close();
           throw new ResolveError(
             ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR,
             reloadError
@@ -294,13 +296,11 @@ async function scrape(url) {
     });
   } catch (e) {
     // Maybe context destroyed error (caused by JS / HTML redirects)
-    await page.close();
     throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR, e);
   }
 
   // For URLs that cannot navigate properly
   if (canonical === 'about:blank') {
-    await page.close();
     throw new ResolveError(
       ResolveErrorEnum.UNSUPPORTED,
       new Error(`Cannot navigate to ${url}`)
@@ -312,7 +312,6 @@ async function scrape(url) {
   // bare host name, which would otherwise pass the empty-content check below.
   // It carries no real content, so report it as a scrape failure.
   if (canonical.startsWith('chrome-error://')) {
-    await page.close();
     throw new ResolveError(ResolveErrorEnum.UNKNOWN_SCRAPE_ERROR);
   }
 
@@ -375,8 +374,6 @@ async function scrape(url) {
       rollbar.error(e, '[scrape] executor-fallback', { url });
     }
   }
-
-  await page.close();
 
   // If we still cannot get resultArticle, throw
   if (!resultArticle) {

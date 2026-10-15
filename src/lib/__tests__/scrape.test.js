@@ -171,6 +171,38 @@ describe('scrape request interception', () => {
     expect(mockBrowser.userAgent).not.toHaveBeenCalled();
   });
 
+  it('does not create a page if resolving the browser UA fails', async () => {
+    delete process.env.SCRAPE_USER_AGENT;
+    const error = new Error('browser disconnected');
+    mockBrowser.userAgent.mockRejectedValueOnce(error);
+    await expect(require('../scrape')('https://example.test/')).rejects.toBe(
+      error
+    );
+    expect(mockBrowser.newPage).not.toHaveBeenCalled();
+  });
+
+  it.each(['setUserAgent', 'setRequestInterception', 'setJavaScriptEnabled'])(
+    'closes the page when %s fails',
+    async method => {
+      const error = new Error('browser disconnected');
+      mockPage[method].mockRejectedValueOnce(error);
+      await expect(require('../scrape')('https://example.test/')).rejects.toBe(
+        error
+      );
+      expect(mockPage.close).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it('does not mask the original failure when closing also fails', async () => {
+    const error = new Error('UA failure');
+    mockPage.setUserAgent.mockRejectedValueOnce(error);
+    mockPage.close.mockRejectedValueOnce(new Error('Target closed'));
+    await expect(require('../scrape')('https://example.test/')).rejects.toBe(
+      error
+    );
+    expect(mockPage.close).toHaveBeenCalledTimes(1);
+  });
+
   it('reloads the SSR DOM and extracts it when setContent fails (Trusted-Types CSP)', async () => {
     // setContent's document.open() empties the DOM before document.write() is
     // rejected, so the earlier reloaded DOM is gone. scrape must reload once
