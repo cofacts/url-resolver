@@ -4,6 +4,7 @@ jest.mock('../unshorten', () => jest.fn());
 const fetch = require('node-fetch');
 const unshorten = require('../unshorten');
 const { isFacebookUrl, resolveFacebookUrl } = require('../resolveFacebookUrl');
+const resolveTargetUrl = require('../resolveTargetUrl');
 
 const SHARE = 'https://www.facebook.com/share/1JE8JoeFQP/';
 const PHOTO = 'https://www.facebook.com/photo.php?fbid=123&set=a.456';
@@ -33,7 +34,7 @@ describe('isFacebookUrl', () => {
   });
 });
 
-describe('resolveFacebookUrl', () => {
+describe('Facebook target resolution', () => {
   beforeEach(() => {
     fetch.mockReset();
     unshorten.mockReset();
@@ -47,7 +48,7 @@ describe('resolveFacebookUrl', () => {
       })
     );
 
-    const result = await resolveFacebookUrl(SHARE);
+    const result = await resolveTargetUrl(SHARE);
 
     expect(result).toBe('https://www.facebook.com/hungwei.org/posts/789');
     const embedUrl = fetch.mock.calls[0][0];
@@ -59,7 +60,7 @@ describe('resolveFacebookUrl', () => {
     const reel = 'https://www.facebook.com/reel/4186902858188216/?rdid=x';
     unshorten.mockResolvedValueOnce({ url: reel, status: 200 });
 
-    const result = await resolveFacebookUrl(
+    const result = await resolveTargetUrl(
       'https://www.facebook.com/share/v/1DhpeqzZLB/'
     );
 
@@ -71,14 +72,14 @@ describe('resolveFacebookUrl', () => {
     unshorten.mockResolvedValueOnce({ url: loginWall(PHOTO), status: 200 });
     fetch.mockResolvedValueOnce(makeEmbedRes({ text: '<div>no link</div>' }));
 
-    expect(await resolveFacebookUrl(SHARE)).toBe(SHARE);
+    expect(await resolveTargetUrl(SHARE)).toBe(SHARE);
   });
 
   it('returns the original URL when the embed fetch fails', async () => {
     unshorten.mockResolvedValueOnce({ url: loginWall(PHOTO), status: 200 });
     fetch.mockRejectedValueOnce(new Error('network'));
 
-    expect(await resolveFacebookUrl(SHARE)).toBe(SHARE);
+    expect(await resolveTargetUrl(SHARE)).toBe(SHARE);
   });
 
   it('returns the original URL for a login wall with no recoverable next', async () => {
@@ -87,7 +88,7 @@ describe('resolveFacebookUrl', () => {
       status: 200,
     });
 
-    expect(await resolveFacebookUrl(SHARE)).toBe(SHARE);
+    expect(await resolveTargetUrl(SHARE)).toBe(SHARE);
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -95,13 +96,43 @@ describe('resolveFacebookUrl', () => {
     const post = 'https://www.facebook.com/hungwei.org/posts/789';
     unshorten.mockResolvedValueOnce({ url: post, status: 200 });
 
-    expect(await resolveFacebookUrl(post)).toBe(post);
+    expect(await resolveTargetUrl(post)).toBe(post);
     expect(fetch).not.toHaveBeenCalled();
   });
 
   it('falls back to the input URL when unshorten throws', async () => {
     unshorten.mockRejectedValueOnce(new Error('timeout'));
 
-    expect(await resolveFacebookUrl(SHARE)).toBe(SHARE);
+    expect(await resolveTargetUrl(SHARE)).toBe(SHARE);
+  });
+
+  it('resolves relative next before recovering a photo URL', async () => {
+    fetch.mockResolvedValueOnce(
+      makeEmbedRes({ text: '<a href="/page/posts/123">post</a>' })
+    );
+    expect(
+      await resolveFacebookUrl(loginWall('/photo.php?fbid=123'), SHARE)
+    ).toBe('https://www.facebook.com/page/posts/123');
+    expect(new URL(fetch.mock.calls[0][0]).searchParams.get('href')).toBe(
+      'https://www.facebook.com/photo.php?fbid=123'
+    );
+    expect(unshorten).not.toHaveBeenCalled();
+  });
+
+  it('does not return a non-HTTP next target', async () => {
+    expect(
+      await resolveFacebookUrl(loginWall('javascript:alert(1)'), SHARE)
+    ).toBe(SHARE);
+  });
+
+  it('cancels unsuccessful embed bodies without reading them', async () => {
+    const response = makeEmbedRes({ ok: false });
+    response.body = { destroy: jest.fn() };
+    response.text = jest.fn();
+    fetch.mockResolvedValueOnce(response);
+    expect(await resolveFacebookUrl(PHOTO, SHARE)).toBe(SHARE);
+    expect(response.body.destroy).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0][1].signal.aborted).toBe(true);
+    expect(response.text).not.toHaveBeenCalled();
   });
 });

@@ -9,8 +9,16 @@ const { isFacebookUrl, resolveFacebookUrl } = require('./resolveFacebookUrl');
  * @returns {Promise<string>} target URL for metadata extraction
  */
 async function resolveTargetUrl(url) {
-  if (isFacebookUrl(url)) return resolveFacebookUrl(url);
-  const { url: targetUrl } = await unshorten(url);
+  let targetUrl;
+  try {
+    ({ url: targetUrl } = await unshorten(url));
+  } catch (e) {
+    // Preserve the existing retry policy for explicitly supplied Facebook URLs.
+    // For other inputs, a failed redirect lookup cannot establish a FB target.
+    if (!isFacebookUrl(url)) throw e;
+    targetUrl = url;
+  }
+  if (isFacebookUrl(targetUrl)) return resolveFacebookUrl(targetUrl, url);
   return targetUrl;
 }
 

@@ -38,6 +38,35 @@ describe('resolveTargetUrl', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it.each(['https://bit.ly/example', 'https://fb.me/example'])(
+    'recovers Facebook targets reached through %s with only one unshorten',
+    async input => {
+      unshorten.mockResolvedValueOnce({
+        url: 'https://www.facebook.com/login/?next=%2Fphoto.php%3Ffbid%3D123',
+        status: 200,
+      });
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        text: async () => '<a href="/example/posts/456">post</a>',
+      });
+      expect(await resolveTargetUrl(input)).toBe(
+        'https://www.facebook.com/example/posts/456'
+      );
+      expect(unshorten).toHaveBeenCalledTimes(1);
+      expect(unshorten).toHaveBeenCalledWith(input);
+    }
+  );
+
+  it('retains the original short URL if Facebook recovery fails', async () => {
+    const input = 'https://bit.ly/example';
+    unshorten.mockResolvedValueOnce({
+      url: 'https://www.facebook.com/login/',
+      status: 200,
+    });
+    expect(await resolveTargetUrl(input)).toBe(input);
+    expect(unshorten).toHaveBeenCalledTimes(1);
+  });
+
   it('preserves the different error behavior of generic and Facebook resolution', async () => {
     const error = new Error('timeout');
     unshorten.mockRejectedValue(error);

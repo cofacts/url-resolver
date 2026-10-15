@@ -1,5 +1,5 @@
 const fetch = require('node-fetch');
-const unshorten = require('./unshorten');
+const { AbortController } = global;
 
 const FETCH_TIMEOUT = 5000; // ms
 const MAX_BODY_BYTES = 5 * 1024 * 1024; // 5 MiB cap on HTML body
@@ -84,7 +84,10 @@ function isLoginUrl(url) {
 function loginWallTarget(url) {
   if (!isLoginUrl(url)) return null;
   try {
-    return new URL(url).searchParams.get('next') || null;
+    const next = new URL(url).searchParams.get('next');
+    if (!next) return null;
+    const target = new URL(next, url);
+    return /^https?:$/.test(target.protocol) ? target.toString() : null;
   } catch (e) {
     return null;
   }
@@ -125,8 +128,10 @@ async function recoverPostUrlViaEmbed(target) {
     new URLSearchParams({ href: target, show_text: 'true' }).toString();
 
   let res;
+  const controller = new AbortController();
   try {
     res = await fetch(embed, {
+      signal: controller.signal,
       method: 'GET',
       timeout: FETCH_TIMEOUT,
       size: MAX_BODY_BYTES,
@@ -137,11 +142,13 @@ async function recoverPostUrlViaEmbed(target) {
       redirect: 'follow',
     });
   } catch (e) {
+    controller.abort();
     return null;
   }
 
   if (!res.ok) {
-    if (res.body) res.body.resume();
+    if (res.body) res.body.destroy();
+    controller.abort();
     return null;
   }
 
@@ -150,6 +157,8 @@ async function recoverPostUrlViaEmbed(target) {
     html = await res.text();
   } catch (e) {
     return null;
+  } finally {
+    controller.abort();
   }
 
   const m = html.match(POST_LINK_RE);
@@ -162,7 +171,7 @@ async function recoverPostUrlViaEmbed(target) {
  * CofactsBot User-Agent, so the generic `fetchAndParseMeta` path can read it
  * without impersonating a crawler UA or booting a browser.
  *
- * Why this is needed (and replaces `unshorten` for Facebook), based on
+ * Why this is needed after the shared `unshorten` step, based on
  * samples observed when this file was written:
  *   - `/share/...` links 302'd to `/login/?next=...` under a non-browser UA, so
  *     plain `unshorten` lands on the login page.
@@ -175,18 +184,12 @@ async function recoverPostUrlViaEmbed(target) {
  *   - Reels/videos/regular posts resolve straight through the redirect to a
  *     crawlable URL and need no embed lookup.
  *
- * @param {string} url a Facebook URL (caller should gate on isFacebookUrl)
+ * @param {string} resolved a Facebook redirect target (caller gates on isFacebookUrl)
+ * @param {string} originalUrl original input, retained for fallback
  * @returns {Promise<string>} the resolved URL, or the input URL when no better
  *   URL can be found (so the caller still falls back to the generic path).
  */
-async function resolveFacebookUrl(url) {
-  let resolved;
-  try {
-    ({ url: resolved } = await unshorten(url));
-  } catch (e) {
-    resolved = url;
-  }
-
+async function resolveFacebookUrl(resolved, originalUrl = resolved) {
   const next = loginWallTarget(resolved);
   const target = next || resolved;
 
@@ -198,7 +201,7 @@ async function resolveFacebookUrl(url) {
   // No crawlable URL found (login wall with no recoverable target, or a
   // photo.php the embed could not map): return the original so the caller's
   // generic + puppeteer path still tries instead of a dead login / photo URL.
-  if (isLoginUrl(target) || isSluglessPhoto(target)) return url;
+  if (isLoginUrl(target) || isSluglessPhoto(target)) return originalUrl;
 
   return target;
 }

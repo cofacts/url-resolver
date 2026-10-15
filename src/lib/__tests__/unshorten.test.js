@@ -3,10 +3,12 @@ jest.mock('node-fetch', () => jest.fn());
 const fetch = require('node-fetch');
 const unshorten = require('../unshorten');
 const ResolveError = require('../ResolveError');
+const http = require('http');
 
 const URL = 'http://example.com/';
 
 const makeRes = ({ status = 200, location = null } = {}) => ({
+  body: { destroy: jest.fn() },
   status,
   headers: {
     get: header => (header.toLowerCase() === 'location' ? location : null),
@@ -15,6 +17,54 @@ const makeRes = ({ status = 200, location = null } = {}) => ({
 
 describe('unshorten', () => {
   beforeEach(() => fetch.mockReset());
+
+  it('cancels an unfinished GET body at the socket and still follows its redirect', async () => {
+    fetch.mockImplementation(jest.requireActual('node-fetch/lib/index.js'));
+    let signalBodyClosed;
+    const bodyClosed = new Promise(resolve => {
+      signalBodyClosed = resolve;
+    });
+    const sockets = new Set();
+    const server = http.createServer((req, res) => {
+      if (req.url === '/target') {
+        res.end();
+      } else if (req.method === 'HEAD') {
+        res.writeHead(405);
+        res.end();
+      } else {
+        res.writeHead(302, { Location: '/target' });
+        res.write('unfinished body');
+        res.on('close', signalBodyClosed);
+        // Deliberately never end: draining this body cannot finish.
+      }
+    });
+    server.on('connection', socket => {
+      sockets.add(socket);
+      socket.on('close', () => sockets.delete(socket));
+    });
+    let timer;
+    try {
+      await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+      const base = `http://127.0.0.1:${server.address().port}`;
+      expect(await unshorten(base)).toEqual({
+        url: `${base}/target`,
+        status: 200,
+      });
+      await Promise.race([
+        bodyClosed,
+        new Promise((resolve, reject) => {
+          timer = setTimeout(
+            () => reject(new Error('GET socket was not closed')),
+            1000
+          );
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+      sockets.forEach(socket => socket.destroy());
+      await new Promise(resolve => server.close(resolve));
+    }
+  });
 
   it('returns original URL and status when there is no redirect', async () => {
     fetch.mockResolvedValueOnce(makeRes({ status: 200 }));
@@ -61,17 +111,17 @@ describe('unshorten', () => {
   });
 
   it('falls back to GET when HEAD returns 405', async () => {
+    const getResponse = makeRes({ status: 301, location: 'http://target/' });
     fetch
       .mockResolvedValueOnce(makeRes({ status: 405 }))
-      .mockResolvedValueOnce(
-        makeRes({ status: 301, location: 'http://target/' })
-      )
+      .mockResolvedValueOnce(getResponse)
       .mockResolvedValueOnce(makeRes({ status: 200 }));
     const result = await unshorten(URL);
     expect(result).toEqual({ url: 'http://target/', status: 200 });
     expect(fetch).toHaveBeenCalledTimes(3);
     expect(fetch.mock.calls[0][1].method).toBe('HEAD');
     expect(fetch.mock.calls[1][1].method).toBe('GET');
+    expect(getResponse.body.destroy).toHaveBeenCalledTimes(1);
   });
 
   it('falls back to GET when HEAD returns 501', async () => {

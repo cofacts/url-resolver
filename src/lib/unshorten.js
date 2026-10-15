@@ -1,4 +1,5 @@
 const fetch = require('node-fetch');
+const { AbortController } = global;
 const ResolveError = require('./ResolveError');
 // eslint-disable-next-line node/no-unpublished-require
 const { ResolveError: ResolveErrorEnum } = require('./resolve_error_pb');
@@ -48,19 +49,27 @@ async function unshorten(url) {
 
   for (let hop = 0; hop < MAX_HOPS; hop++) {
     let res;
+    const controller = new AbortController();
+    const options = { ...FETCH_OPTS, signal: controller.signal };
     try {
-      res = await fetch(current, { method: 'HEAD', ...FETCH_OPTS });
+      res = await fetch(current, { method: 'HEAD', ...options });
       if (res.status === 405 || res.status === 501) {
-        res = await fetch(current, { method: 'GET', ...FETCH_OPTS });
+        if (res.body) res.body.destroy();
+        res = await fetch(current, { method: 'GET', ...options });
       }
-      // We only need headers; drain the body so node-fetch releases the socket.
-      if (res.body) res.body.resume();
+      // Only headers are needed. Cancel GET fallback bodies instead of
+      // downloading potentially large files in the background.
+      if (res.body) res.body.destroy();
     } catch (e) {
       const mapped = mapFetchError(e);
       if (mapped) throw mapped;
       // eslint-disable-next-line no-console
       console.error('[unshorten]', current, e);
       return { url: current, status: lastStatus };
+    } finally {
+      // node-fetch v2 exposes a piped body; destroying that stream alone
+      // does not reliably close the underlying HTTP request.
+      controller.abort();
     }
 
     lastStatus = res.status;
