@@ -19,6 +19,19 @@ You can use gRPC clients like [BloomRPC](https://github.com/uw-labs/bloomrpc) to
 
 To access the gRPC service, you can see `docker-test.js` for an example that uses `@grpc/proto-loader`.
 
+## CofactsBot
+
+When a client submits a URL for resolution, this service follows redirects and
+fetches the target page to extract its title, summary, and image URL. Facebook
+photo links may also require fetching Facebook's Embedded Post endpoint to
+recover the post URL. These HTTP requests identify themselves as
+`CofactsBot/1.0 (+https://github.com/cofacts/url-resolver)`; they are triggered by
+resolution requests, rather than a scheduled crawl.
+
+Set `URL_RESOLVER_USER_AGENT` to override this shared HTTP User-Agent. If metadata
+is incomplete or fetching fails, the service may open the page in Puppeteer,
+which uses a separate browser User-Agent configurable with `SCRAPE_USER_AGENT`.
+
 ## Development
 
 First, create an `.env` file from `.env.sample`. Fill in your env.

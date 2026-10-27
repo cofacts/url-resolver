@@ -4,7 +4,7 @@ const FETCH_TIMEOUT = 5000; // ms
 const MAX_BODY_BYTES = 5 * 1024 * 1024; // 5 MiB cap on HTML body
 const USER_AGENT =
   process.env.URL_RESOLVER_USER_AGENT ||
-  'CofactsBot/1.0 (+https://cofacts.tw/bot)';
+  'CofactsBot/1.0 (+https://github.com/cofacts/url-resolver)';
 
 /**
  * An unfurl-compatible `opts.fetch` that performs the real network request with
@@ -33,4 +33,4 @@ async function cofactsBotFetch(url) {
   };
 }
 
-module.exports = { cofactsBotFetch };
+module.exports = { cofactsBotFetch, USER_AGENT };

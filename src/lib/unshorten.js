@@ -6,9 +6,7 @@ const { ResolveError: ResolveErrorEnum } = require('./resolve_error_pb');
 
 const TIMEOUT = 2000; // ms
 const MAX_HOPS = 5;
-const USER_AGENT =
-  process.env.URL_RESOLVER_USER_AGENT ||
-  'CofactsBot/1.0 (+https://cofacts.tw/bot)';
+const { USER_AGENT } = require('./cofactsBotFetch');
 
 const FETCH_OPTS = {
   redirect: 'manual',
@@ -62,7 +60,8 @@ async function unshorten(url) {
       if (res.body) res.body.destroy();
     } catch (e) {
       const mapped = mapFetchError(e);
-      if (mapped) throw mapped;
+      // Once a redirect target is known, let metadata/browser fetching try it.
+      if (mapped && hop === 0) throw mapped;
       // eslint-disable-next-line no-console
       console.error('[unshorten]', current, e);
       return { url: current, status: lastStatus };

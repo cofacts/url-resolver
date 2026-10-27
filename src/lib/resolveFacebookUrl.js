@@ -3,9 +3,7 @@ const { AbortController } = global;
 
 const FETCH_TIMEOUT = 5000; // ms
 const MAX_BODY_BYTES = 5 * 1024 * 1024; // 5 MiB cap on HTML body
-const USER_AGENT =
-  process.env.URL_RESOLVER_USER_AGENT ||
-  'CofactsBot/1.0 (+https://cofacts.tw/bot)';
+const { USER_AGENT } = require('./cofactsBotFetch');
 
 // Why this module exists: the same Facebook content can respond differently
 // depending on which endpoint serves it to an anonymous request. We observed

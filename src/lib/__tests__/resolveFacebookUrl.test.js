@@ -1,10 +1,7 @@
 jest.mock('node-fetch', () => jest.fn());
-jest.mock('../unshorten', () => jest.fn());
 
 const fetch = require('node-fetch');
-const unshorten = require('../unshorten');
 const { isFacebookUrl, resolveFacebookUrl } = require('../resolveFacebookUrl');
-const resolveTargetUrl = require('../resolveTargetUrl');
 
 const SHARE = 'https://www.facebook.com/share/1JE8JoeFQP/';
 const PHOTO = 'https://www.facebook.com/photo.php?fbid=123&set=a.456';
@@ -37,18 +34,16 @@ describe('isFacebookUrl', () => {
 describe('Facebook target resolution', () => {
   beforeEach(() => {
     fetch.mockReset();
-    unshorten.mockReset();
   });
 
   it('recovers the real /<page>/posts/<id> for a shared photo via the embed endpoint', async () => {
-    unshorten.mockResolvedValueOnce({ url: loginWall(PHOTO), status: 200 });
     fetch.mockResolvedValueOnce(
       makeEmbedRes({
         text: '<a href="/hungwei.org/posts/789?ref=embed_post">post</a>',
       })
     );
 
-    const result = await resolveTargetUrl(SHARE);
+    const result = await resolveFacebookUrl(loginWall(PHOTO), SHARE);
 
     expect(result).toBe('https://www.facebook.com/hungwei.org/posts/789');
     const embedUrl = fetch.mock.calls[0][0];
@@ -58,9 +53,9 @@ describe('Facebook target resolution', () => {
 
   it('passes a reel URL straight through without an embed lookup', async () => {
     const reel = 'https://www.facebook.com/reel/4186902858188216/?rdid=x';
-    unshorten.mockResolvedValueOnce({ url: reel, status: 200 });
 
-    const result = await resolveTargetUrl(
+    const result = await resolveFacebookUrl(
+      reel,
       'https://www.facebook.com/share/v/1DhpeqzZLB/'
     );
 
@@ -69,41 +64,29 @@ describe('Facebook target resolution', () => {
   });
 
   it('returns the original URL when the embed exposes no post link', async () => {
-    unshorten.mockResolvedValueOnce({ url: loginWall(PHOTO), status: 200 });
     fetch.mockResolvedValueOnce(makeEmbedRes({ text: '<div>no link</div>' }));
 
-    expect(await resolveTargetUrl(SHARE)).toBe(SHARE);
+    expect(await resolveFacebookUrl(loginWall(PHOTO), SHARE)).toBe(SHARE);
   });
 
   it('returns the original URL when the embed fetch fails', async () => {
-    unshorten.mockResolvedValueOnce({ url: loginWall(PHOTO), status: 200 });
     fetch.mockRejectedValueOnce(new Error('network'));
 
-    expect(await resolveTargetUrl(SHARE)).toBe(SHARE);
+    expect(await resolveFacebookUrl(loginWall(PHOTO), SHARE)).toBe(SHARE);
   });
 
   it('returns the original URL for a login wall with no recoverable next', async () => {
-    unshorten.mockResolvedValueOnce({
-      url: 'https://www.facebook.com/login/',
-      status: 200,
-    });
-
-    expect(await resolveTargetUrl(SHARE)).toBe(SHARE);
+    expect(
+      await resolveFacebookUrl('https://www.facebook.com/login/', SHARE)
+    ).toBe(SHARE);
     expect(fetch).not.toHaveBeenCalled();
   });
 
   it('passes a direct /<page>/posts/<id> URL through unchanged', async () => {
     const post = 'https://www.facebook.com/hungwei.org/posts/789';
-    unshorten.mockResolvedValueOnce({ url: post, status: 200 });
 
-    expect(await resolveTargetUrl(post)).toBe(post);
+    expect(await resolveFacebookUrl(post, post)).toBe(post);
     expect(fetch).not.toHaveBeenCalled();
-  });
-
-  it('falls back to the input URL when unshorten throws', async () => {
-    unshorten.mockRejectedValueOnce(new Error('timeout'));
-
-    expect(await resolveTargetUrl(SHARE)).toBe(SHARE);
   });
 
   it('resolves relative next before recovering a photo URL', async () => {
@@ -116,7 +99,6 @@ describe('Facebook target resolution', () => {
     expect(new URL(fetch.mock.calls[0][0]).searchParams.get('href')).toBe(
       'https://www.facebook.com/photo.php?fbid=123'
     );
-    expect(unshorten).not.toHaveBeenCalled();
   });
 
   it('does not return a non-HTTP next target', async () => {

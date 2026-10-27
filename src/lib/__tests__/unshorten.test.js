@@ -192,3 +192,26 @@ describe('unshorten', () => {
     expect(result).toEqual({ url: 'http://hop1/', status: 301 });
   });
 });
+
+describe('intermediate mapped failures', () => {
+  it.each([
+    ['FetchError', 'network timeout at: http://target/'],
+    ['Error', 'reason: socket hang up'],
+    ['Error', 'reason: connect ECONNREFUSED'],
+    ['Error', "reason: Hostname/IP doesn't match certificate's altnames"],
+  ])('retains the known target on %s: %s', async (name, message) => {
+    const error = new Error(message);
+    error.name = name;
+    fetch
+      .mockReset()
+      .mockResolvedValueOnce(
+        makeRes({ status: 302, location: 'http://target/' })
+      )
+      .mockRejectedValueOnce(error);
+    expect(await unshorten(URL)).toEqual({
+      url: 'http://target/',
+      status: 302,
+    });
+    expect(fetch.mock.calls[1][1].signal.aborted).toBe(true);
+  });
+});

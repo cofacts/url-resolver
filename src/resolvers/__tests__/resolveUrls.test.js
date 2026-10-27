@@ -1,3 +1,8 @@
+jest.mock('../../lib/resolveFacebookUrl', () => ({
+  ...jest.requireActual('../../lib/resolveFacebookUrl'),
+  resolveFacebookUrl: jest.fn(),
+}));
+const { resolveFacebookUrl } = require('../../lib/resolveFacebookUrl');
 jest.mock('../../lib/unshorten');
 jest.mock('../../lib/normalize');
 jest.mock('../../lib/fetchAndParseMeta');
@@ -475,5 +480,122 @@ Array [
         done();
       })
       .catch(err => done.fail(err));
+  });
+});
+
+describe('target resolution through resolveUrls', () => {
+  const share = 'https://www.facebook.com/share/example/';
+  const login =
+    'https://www.facebook.com/login/?next=%2Fphoto.php%3Ffbid%3D123';
+  const post = 'https://www.facebook.com/example/posts/456';
+  const makeCall = url => ({
+    request: { urls: [url] },
+    write: jest.fn(),
+    end: jest.fn(),
+  });
+
+  beforeEach(() => {
+    normalize.mockReset().mockImplementation(url => url);
+    unshorten.mockReset();
+    resolveFacebookUrl.mockReset();
+    fetchAndParseMeta.mockReset().mockImplementation(
+      async url =>
+        new ScrapeResult({
+          canonical: url,
+          title: 'title',
+          summary: 'summary',
+          topImageUrl: 'image',
+        })
+    );
+    scrape.mockReset().mockImplementation(async url => scrape.getResult(url));
+  });
+
+  it.each([share, 'https://bit.ly/example', 'https://fb.me/example'])(
+    'recovers a Facebook target reached through %s',
+    async input => {
+      const normalized = input + '?normalized=1';
+      normalize.mockReturnValue(normalized);
+      unshorten.mockResolvedValue({ url: login, status: 200 });
+      resolveFacebookUrl.mockResolvedValue(post);
+      const call = makeCall(input);
+      await resolveUrls(call);
+      expect(unshorten).toHaveBeenCalledTimes(1);
+      expect(unshorten).toHaveBeenCalledWith(normalized);
+      expect(resolveFacebookUrl).toHaveBeenCalledWith(login, normalized);
+      expect(fetchAndParseMeta).toHaveBeenCalledWith(post);
+      expect(scrape).not.toHaveBeenCalled();
+      expect(call.write).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: input,
+          canonical: post,
+          successfully_resolved: true,
+        })
+      );
+    }
+  );
+
+  it('uses non-Facebook redirect targets without Facebook recovery', async () => {
+    const target = 'https://www.threads.com/@user/post/CODE';
+    unshorten.mockResolvedValue({ url: target, status: 200 });
+    const call = makeCall('https://example.com/short');
+    await resolveUrls(call);
+    expect(resolveFacebookUrl).not.toHaveBeenCalled();
+    expect(fetchAndParseMeta).toHaveBeenCalledWith(target);
+    expect(call.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        canonical: target,
+        successfully_resolved: true,
+      })
+    );
+  });
+
+  it('continues with the original short URL when Facebook recovery returns it', async () => {
+    const input = 'https://bit.ly/example';
+    unshorten.mockResolvedValue({ url: login, status: 200 });
+    resolveFacebookUrl.mockResolvedValue(input);
+    const call = makeCall(input);
+    await resolveUrls(call);
+    expect(resolveFacebookUrl).toHaveBeenCalledWith(login, input);
+    expect(fetchAndParseMeta).toHaveBeenCalledWith(input);
+    expect(call.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        canonical: input,
+        successfully_resolved: true,
+      })
+    );
+  });
+
+  it('reports NOT_REACHABLE for a failed non-Facebook redirect lookup', async () => {
+    unshorten.mockRejectedValue(
+      new ResolveError(ResolveErrorEnum.NOT_REACHABLE)
+    );
+    const call = makeCall('https://example.com/short');
+    await resolveUrls(call);
+    expect(call.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: ResolveErrorEnum.NOT_REACHABLE,
+      })
+    );
+    expect(fetchAndParseMeta).not.toHaveBeenCalled();
+    expect(scrape).not.toHaveBeenCalled();
+    expect(resolveFacebookUrl).not.toHaveBeenCalled();
+  });
+
+  it('continues metadata and browser fallback for Facebook when unshorten fails', async () => {
+    unshorten.mockRejectedValue(
+      new ResolveError(ResolveErrorEnum.NOT_REACHABLE)
+    );
+    resolveFacebookUrl.mockResolvedValue(share);
+    fetchAndParseMeta.mockResolvedValue(new ScrapeResult({ canonical: share }));
+    const call = makeCall(share);
+    await resolveUrls(call);
+    expect(resolveFacebookUrl).toHaveBeenCalledWith(share, share);
+    expect(fetchAndParseMeta).toHaveBeenCalledWith(share);
+    expect(scrape).toHaveBeenCalledWith(share);
+    expect(call.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        successfully_resolved: true,
+      })
+    );
   });
 });
