@@ -39,6 +39,12 @@
     "node": ">=24"
   },
   "jest": {
-    "clearMocks": true
+    "clearMocks": true,
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "/__fixtures__/",
+      "/src/vendor/",
+      "_pb\\.js$"
+    ]
   }
 }
