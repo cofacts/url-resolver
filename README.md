@@ -1,6 +1,6 @@
 # Cofacts URL Resolver
 
-[![Build Status](https://travis-ci.org/cofacts/url-resolver.svg?branch=master)](https://travis-ci.org/cofacts/url-resolver) [![Coverage Status](https://coveralls.io/repos/github/cofacts/url-resolver/badge.svg?branch=master)](https://coveralls.io/github/cofacts/url-resolver?branch=master)
+[![CI](https://github.com/cofacts/url-resolver/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/cofacts/url-resolver/actions/workflows/ci.yml) [![Coverage Status](https://coveralls.io/repos/github/cofacts/url-resolver/badge.svg?branch=master)](https://coveralls.io/github/cofacts/url-resolver?branch=master)
 
 A gRPC service that scrapes the specified URL and returns scraped result and summary extracted by
 [Readability.js]

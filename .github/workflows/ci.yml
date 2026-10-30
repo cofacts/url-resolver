@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # Tests mock the browser, so skip downloading Chromium.
+      - run: npm ci
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: 'true'
+
+      # Generates src/lib/resolve_error_pb.js, which src/ requires.
+      - run: npm run compile
+      - run: npm run lint
+      - run: npm test -- --ci --coverage
+
+      - name: Update coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Coverage upload is informational; don't fail CI if Coveralls is unreachable.
+          fail-on-error: false
