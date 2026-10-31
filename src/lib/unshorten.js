@@ -1,42 +1,94 @@
 const fetch = require('node-fetch');
+const { AbortController } = global;
 const ResolveError = require('./ResolveError');
 // eslint-disable-next-line node/no-unpublished-require
 const { ResolveError: ResolveErrorEnum } = require('./resolve_error_pb');
 
 const TIMEOUT = 2000; // ms
+const MAX_HOPS = 5;
+const { USER_AGENT } = require('./cofactsBotFetch');
 
-/**
- * @param {string} url
- * @returns {string} unshortened URL, or original URL if not redirected at all
- */
-async function unshorten(url) {
-  try {
-    const res = await fetch(url, {
-      method: 'HEAD',
-      redirect: 'manual',
-      timeout: TIMEOUT,
-    });
+const FETCH_OPTS = {
+  redirect: 'manual',
+  timeout: TIMEOUT,
+  headers: { 'User-Agent': USER_AGENT },
+};
 
-    return res.headers.get('location') || url;
-  } catch (e) {
-    const errorStr = e.toString();
-    switch (true) {
-      case errorStr.startsWith('FetchError: network timeout at:'):
-      case errorStr.endsWith('reason: socket hang up'):
-      case errorStr.includes('reason: connect ECONNREFUSED'):
-        throw new ResolveError(ResolveErrorEnum.NOT_REACHABLE, e);
+function mapFetchError(e) {
+  const errorStr = e.toString();
+  switch (true) {
+    case errorStr.startsWith('FetchError: network timeout at:'):
+    case errorStr.endsWith('reason: socket hang up'):
+    case errorStr.includes('reason: connect ECONNREFUSED'):
+      return new ResolveError(ResolveErrorEnum.NOT_REACHABLE, e);
 
-      case errorStr.includes(
-        "reason: Hostname/IP doesn't match certificate's altnames"
-      ):
-        throw new ResolveError(ResolveErrorEnum.HTTPS_ERROR, e);
+    case errorStr.includes(
+      "reason: Hostname/IP doesn't match certificate's altnames"
+    ):
+      return new ResolveError(ResolveErrorEnum.HTTPS_ERROR, e);
 
-      default:
-        // eslint-disable-next-line no-console
-        console.error('[unshorten]', url, e);
-        return url;
-    }
+    default:
+      return null;
   }
 }
 
+/**
+ * Follow up to MAX_HOPS redirects starting at `url`. HEAD is preferred; falls
+ * back to GET when the server rejects HEAD with 405 or 501.
+ *
+ * @param {string} url
+ * @returns {Promise<{ url: string, status: number }>} final URL and the last
+ *   response status. `status` is 0 when no response was obtained.
+ */
+async function unshorten(url) {
+  let current = url;
+  let lastStatus = 0;
+  const seen = new Set([current]);
+
+  for (let hop = 0; hop < MAX_HOPS; hop++) {
+    let res;
+    const controller = new AbortController();
+    const options = { ...FETCH_OPTS, signal: controller.signal };
+    try {
+      res = await fetch(current, { method: 'HEAD', ...options });
+      if (res.status === 405 || res.status === 501) {
+        if (res.body) res.body.destroy();
+        res = await fetch(current, { method: 'GET', ...options });
+      }
+      // Only headers are needed. Cancel GET fallback bodies instead of
+      // downloading potentially large files in the background.
+      if (res.body) res.body.destroy();
+    } catch (e) {
+      const mapped = mapFetchError(e);
+      // Once a redirect target is known, let metadata/browser fetching try it.
+      if (mapped && hop === 0) throw mapped;
+      // eslint-disable-next-line no-console
+      console.error('[unshorten]', current, e);
+      return { url: current, status: lastStatus };
+    } finally {
+      // node-fetch v2 exposes a piped body; destroying that stream alone
+      // does not reliably close the underlying HTTP request.
+      controller.abort();
+    }
+
+    lastStatus = res.status;
+    const location = res.headers.get('location');
+    if (!location) return { url: current, status: lastStatus };
+
+    let next;
+    try {
+      next = new URL(location, current).toString();
+    } catch (e) {
+      return { url: current, status: lastStatus };
+    }
+
+    if (seen.has(next)) return { url: next, status: lastStatus };
+    seen.add(next);
+    current = next;
+  }
+
+  return { url: current, status: lastStatus };
+}
+
 module.exports = unshorten;
+module.exports.MAX_HOPS = MAX_HOPS;

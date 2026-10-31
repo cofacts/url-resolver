@@ -15,16 +15,14 @@ function normalize(url) {
   }
 
   try {
-    normalized = new URL(normalized).toString();
+    const parsed = new URL(normalized);
+    // Delete query parameters structurally, preserving separators and fragments.
+    // Avoid reserializing the query at all when there is no click ID to remove.
+    if (parsed.searchParams.has('fbclid')) parsed.searchParams.delete('fbclid');
+    normalized = parsed.toString();
   } catch (e) {
     throw new ResolveError(ResolveErrorEnum.INVALID_URL, e);
   }
-
-  normalized = normalized
-    // Facebook --> mobile facebook or better webpage loading performance
-    .replace(/^https?:\/\/www.facebook.com/i, 'https://m.facebook.com')
-    // Remove facebook click id
-    .replace(/[?&]fbclid=[^&]*&?/, '');
 
   return normalized;
 }

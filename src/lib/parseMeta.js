@@ -6,12 +6,14 @@ const { ResolveError: ResolveErrorEnum } = require('./resolve_error_pb');
 
 /**
  * @param {string} url
+ * @param {?Function} [fetchOverride] optional unfurl-compatible fetch, used to
+ *   run the request with a custom User-Agent. See lib/cofactsBotFetch.js.
  * @returns {Promise<ScrapeResult>}
  */
-async function parseMeta(url) {
+async function parseMeta(url, fetchOverride) {
   let result;
   try {
-    result = await unfurl(url);
+    result = await unfurl(url, fetchOverride ? { fetch: fetchOverride } : {});
   } catch (e) {
     throw new ResolveError(ResolveErrorEnum.UNKNOWN_UNFURL_ERROR, e);
   }
