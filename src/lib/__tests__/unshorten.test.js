@@ -163,17 +163,17 @@ describe('unshorten', () => {
   it('throws ResolveError on network timeout', async () => {
     const err = new Error('network timeout at:');
     err.name = 'FetchError';
-    fetch.mockRejectedValueOnce(err);
+    fetch.mockRejectedValue(err);
     await expect(unshorten(URL)).rejects.toThrow(ResolveError);
   });
 
   it('throws ResolveError on socket hang up', async () => {
-    fetch.mockRejectedValueOnce(new Error('reason: socket hang up'));
+    fetch.mockRejectedValue(new Error('reason: socket hang up'));
     await expect(unshorten(URL)).rejects.toThrow(ResolveError);
   });
 
   it('throws ResolveError on ECONNREFUSED', async () => {
-    fetch.mockRejectedValueOnce(new Error('reason: connect ECONNREFUSED'));
+    fetch.mockRejectedValue(new Error('reason: connect ECONNREFUSED'));
     await expect(unshorten(URL)).rejects.toThrow(ResolveError);
   });
 
@@ -269,6 +269,42 @@ describe('Facebook outbound links', () => {
   });
 });
 
+describe('https upgrade', () => {
+  beforeEach(() => fetch.mockReset());
+
+  const connectTimeout = () => {
+    const error = new Error('network timeout at: http://site/');
+    error.name = 'FetchError';
+    return error;
+  };
+
+  it('retries an unreachable http hop over https', async () => {
+    fetch
+      .mockRejectedValueOnce(connectTimeout())
+      .mockResolvedValueOnce(
+        makeRes({ status: 301, location: 'https://site/article/1' })
+      )
+      .mockResolvedValueOnce(makeRes({ status: 200 }));
+    expect(await unshorten('http://site/AArticle.aspx?id=1')).toEqual({
+      url: 'https://site/article/1',
+      status: 200,
+    });
+    expect(fetch.mock.calls[1][0]).toBe('https://site/AArticle.aspx?id=1');
+  });
+
+  it('still throws when https is unreachable too', async () => {
+    fetch.mockRejectedValue(connectTimeout());
+    await expect(unshorten('http://site/')).rejects.toThrow(ResolveError);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry an https URL', async () => {
+    fetch.mockRejectedValue(connectTimeout());
+    await expect(unshorten('https://site/')).rejects.toThrow(ResolveError);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('Facebook login walls', () => {
   beforeEach(() => fetch.mockReset());
 
@@ -298,9 +334,10 @@ describe('intermediate mapped failures', () => {
       .mockResolvedValueOnce(
         makeRes({ status: 302, location: 'http://target/' })
       )
-      .mockRejectedValueOnce(error);
+      .mockRejectedValue(error);
+    const upgraded = !/altnames/.test(message);
     expect(await unshorten(URL)).toEqual({
-      url: 'http://target/',
+      url: upgraded ? 'https://target/' : 'http://target/',
       status: 302,
     });
     expect(fetch.mock.calls[1][1].signal.aborted).toBe(true);

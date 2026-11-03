@@ -37,6 +37,14 @@ function mapFetchError(e) {
 }
 
 /**
+ * @param {string} url
+ * @returns {?string} `url` with the https scheme, or null when not http
+ */
+function httpsUpgrade(url) {
+  return /^http:\/\//i.test(url) ? url.replace(/^http:/i, 'https:') : null;
+}
+
+/**
  * Follow up to MAX_HOPS redirects starting at `url`. HEAD is preferred; falls
  * back to GET when the server rejects HEAD with 405 or 501.
  *
@@ -74,8 +82,18 @@ async function unshorten(url) {
       if (res.body) res.body.destroy();
     } catch (e) {
       const mapped = mapFetchError(e);
+      // Some sites no longer listen on port 80; browsers upgrade such links to
+      // https, so retry the same hop over https once.
+      const httpsUrl = httpsUpgrade(current);
+      const unreachable =
+        mapped && mapped.returnedError === ResolveErrorEnum.NOT_REACHABLE;
+      if (unreachable && httpsUrl && !seen.has(httpsUrl)) {
+        seen.add(httpsUrl);
+        current = httpsUrl;
+        continue;
+      }
       // Once a redirect target is known, let metadata/browser fetching try it.
-      if (mapped && hop === 0) throw mapped;
+      if (mapped && lastStatus === 0) throw mapped;
       // eslint-disable-next-line no-console
       console.error('[unshorten]', current, e);
       return { url: current, status: lastStatus };
