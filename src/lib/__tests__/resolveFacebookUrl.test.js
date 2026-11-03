@@ -101,6 +101,93 @@ describe('Facebook target resolution', () => {
     );
   });
 
+  it('maps story.php behind a login wall to /<owner>/posts/<post>', async () => {
+    // Redirect chain observed in prod for /share/v/1FKkYi3c5x/.
+    const story =
+      'https://www.facebook.com/story.php?story_fbid=1756694823130318&id=100063694510630&mibextid=WC7FNe&rdid=x';
+
+    expect(
+      await resolveFacebookUrl(
+        loginWall(story),
+        'https://www.facebook.com/share/v/1FKkYi3c5x/'
+      )
+    ).toBe('https://www.facebook.com/100063694510630/posts/1756694823130318');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('maps direct m. story.php and permalink.php, including pfbid ids', async () => {
+    expect(
+      await resolveFacebookUrl(
+        'https://m.facebook.com/story.php?story_fbid=pfbid02cxy5MMHc6vMghJ5hFPW&id=100005655455633'
+      )
+    ).toBe(
+      'https://www.facebook.com/100005655455633/posts/pfbid02cxy5MMHc6vMghJ5hFPW'
+    );
+    expect(
+      await resolveFacebookUrl(
+        'https://www.facebook.com/permalink.php?id=307636219707522&story_fbid=1261214907682977'
+      )
+    ).toBe('https://www.facebook.com/307636219707522/posts/1261214907682977');
+  });
+
+  it.each([
+    ['&id=276861822357066，聽完之後', '276861822357066'],
+    ['&id=100012492390353?sfnsn=mo&extid=a', '100012492390353'],
+    ['&id=100000492720842。', '100000492720842'],
+  ])('ignores trailing text after the owner id (%s)', async (suffix, owner) => {
+    expect(
+      await resolveFacebookUrl(
+        `https://m.facebook.com/story.php?story_fbid=1482358428474060${suffix}`
+      )
+    ).toBe(`https://www.facebook.com/${owner}/posts/1482358428474060`);
+  });
+
+  it('leaves story.php without an owner id unchanged', async () => {
+    const story = 'https://www.facebook.com/story.php?story_fbid=123';
+    expect(await resolveFacebookUrl(story)).toBe(story);
+  });
+
+  it.each([
+    [
+      'https://m.facebook.com/login.php?next=https%3A%2F%2Fm.facebook.com%2Fgroups%2F1685234955088705%2Fpermalink%2F3405023863109797%2F',
+      'https://www.facebook.com/groups/1685234955088705/permalink/3405023863109797/',
+    ],
+    [
+      'https://zh-tw.facebook.com/help/262314300536014',
+      'https://www.facebook.com/help/262314300536014',
+    ],
+    [
+      'https://www.facebook.com/a/posts/1',
+      'https://www.facebook.com/a/posts/1',
+    ],
+    [
+      'https://ja-jp.facebook.com/dietician.tw/posts/1',
+      'https://www.facebook.com/dietician.tw/posts/1',
+    ],
+    ['https://fb.watch/abc/', null],
+    ['https://developers.facebook.com/docs/plugins/embedded-posts/', null],
+    ['https://business.facebook.com/news.ebc/videos/1/', null],
+    ['https://web.facebook.com/a/posts/1', null],
+  ])(
+    'moves %s to the www host only for known aliases',
+    async (input, expected) => {
+      fetch.mockResolvedValue(makeEmbedRes({ text: '<div></div>' }));
+      expect(await resolveFacebookUrl(input)).toBe(expected || input);
+    }
+  );
+
+  it('maps the old group ?view=permalink link to /groups/<g>/posts/<id>/', async () => {
+    expect(
+      await resolveFacebookUrl(
+        'https://m.facebook.com/groups/1726485900912990?view=permalink&id=2670283996533171'
+      )
+    ).toBe(
+      'https://www.facebook.com/groups/1726485900912990/posts/2670283996533171/'
+    );
+    const home = 'https://www.facebook.com/groups/1726485900912990/';
+    expect(await resolveFacebookUrl(home)).toBe(home);
+  });
+
   it('does not return a non-HTTP next target', async () => {
     expect(
       await resolveFacebookUrl(loginWall('javascript:alert(1)'), SHARE)

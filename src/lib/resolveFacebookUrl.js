@@ -131,6 +131,32 @@ function outboundLinkTarget(url) {
 }
 
 /**
+ * `story.php` / `permalink.php?story_fbid=<post>&id=<owner>` redirect
+ * anonymous clients to the login wall, but `/<owner>/posts/<post>` serves Open
+ * Graph metadata to CofactsBot (and redirects to `/reel/<id>` for video
+ * posts). Observed on live Facebook in Nov 2026, including a story.php that a
+ * `/share/v/` link resolved to from a GCP IP.
+ *
+ * @param {string} url
+ * @returns {?string} the `/<owner>/posts/<post>` URL, or null
+ */
+function storyPostUrl(url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch (e) {
+    return null;
+  }
+  if (!/^\/(?:story|permalink)\.php$/.test(parsed.pathname)) return null;
+  // Pasted links often carry trailing text ("&id=123，聽完之後" or
+  // "&id=123?sfnsn=mo"), so keep only the leading id characters.
+  const post = (parsed.searchParams.get('story_fbid') || '').match(/^\w+/);
+  const owner = (parsed.searchParams.get('id') || '').match(/^\d+/);
+  if (!post || !owner) return null;
+  return `https://www.facebook.com/${owner[0]}/posts/${post[0]}`;
+}
+
+/**
  * `photo.php` (and the bare `/photo` route) expose only a photo attachment id
  * and album id — no page slug. In the samples observed when this file was
  * written, Facebook redirected these to the login wall regardless of
@@ -204,6 +230,53 @@ async function recoverPostUrlViaEmbed(target) {
 }
 
 /**
+ * Older group links use `/groups/<group>?view=permalink&id=<post>`, which stays
+ * behind the login wall, while `/groups/<group>/posts/<post>` serves Open
+ * Graph metadata for public groups (observed Nov 2026).
+ *
+ * @param {string} url
+ * @returns {?string} the `/groups/<group>/posts/<post>/` URL, or null
+ */
+function groupPostUrl(url) {
+  try {
+    const { pathname, searchParams } = new URL(url);
+    const group = pathname.match(/^\/groups\/([^/]+)\/?$/);
+    const post = (searchParams.get('id') || '').match(/^\d+/);
+    if (!group || searchParams.get('view') !== 'permalink' || !post) {
+      return null;
+    }
+    return `https://www.facebook.com/groups/${group[1]}/posts/${post[0]}/`;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Subdomains that serve the same content as www: the mobile site and locale
+// hosts such as zh-tw. / ja-jp. Verified live for m. and ja-jp. (Nov 2026);
+// other ll-cc. hosts are assumed to be locale variants of the same site.
+// Other subdomains (developers., business., l. / lm. outbound wrappers, ...)
+// are different sites or endpoints and are left alone.
+const WWW_ALIAS_RE = /^(?:m|[a-z]{2}-[a-z]{2})\.facebook\.com$/i;
+
+/**
+ * The mobile and locale hosts serve the login wall to CofactsBot where www
+ * serves Open Graph metadata for the same path, e.g. a public group post.
+ *
+ * @param {string} url
+ * @returns {string} `url` on www.facebook.com when it is on a known alias host
+ */
+function onWwwHost(url) {
+  try {
+    const parsed = new URL(url);
+    if (!WWW_ALIAS_RE.test(parsed.hostname)) return url;
+    parsed.hostname = 'www.facebook.com';
+    return parsed.toString();
+  } catch (e) {
+    return url;
+  }
+}
+
+/**
  * Resolve a Facebook URL to one that serves Open Graph metadata to the
  * CofactsBot User-Agent, so the generic `fetchAndParseMeta` path can read it
  * without impersonating a crawler UA or booting a browser.
@@ -230,6 +303,9 @@ async function resolveFacebookUrl(resolved, originalUrl = resolved) {
   const next = loginWallTarget(resolved);
   const target = next || resolved;
 
+  const storyPost = storyPostUrl(target);
+  if (storyPost) return storyPost;
+
   if (isSluglessPhoto(target)) {
     const recovered = await recoverPostUrlViaEmbed(target);
     if (recovered) return recovered;
@@ -240,7 +316,7 @@ async function resolveFacebookUrl(resolved, originalUrl = resolved) {
   // generic + puppeteer path still tries instead of a dead login / photo URL.
   if (isLoginUrl(target) || isSluglessPhoto(target)) return originalUrl;
 
-  return target;
+  return onWwwHost(groupPostUrl(target) || target);
 }
 
 module.exports = { isFacebookUrl, outboundLinkTarget, resolveFacebookUrl };
