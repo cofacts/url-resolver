@@ -7,6 +7,7 @@ const { ResolveError: ResolveErrorEnum } = require('./resolve_error_pb');
 const TIMEOUT = 2000; // ms
 const MAX_HOPS = 5;
 const { USER_AGENT } = require('./cofactsBotFetch');
+const { outboundLinkTarget } = require('./resolveFacebookUrl');
 
 const FETCH_OPTS = {
   redirect: 'manual',
@@ -46,6 +47,16 @@ async function unshorten(url) {
   const seen = new Set([current]);
 
   for (let hop = 0; hop < MAX_HOPS; hop++) {
+    // Any hop (the input, a shortener target, a login `next`) may be a
+    // Facebook outbound wrapper; continue from its target without fetching it.
+    const outbound = outboundLinkTarget(current);
+    if (outbound) {
+      if (seen.has(outbound)) return { url: outbound, status: lastStatus };
+      seen.add(outbound);
+      current = outbound;
+      continue;
+    }
+
     let res;
     const controller = new AbortController();
     const options = { ...FETCH_OPTS, signal: controller.signal };

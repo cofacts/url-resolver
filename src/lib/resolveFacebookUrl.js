@@ -92,6 +92,45 @@ function loginWallTarget(url) {
 }
 
 /**
+ * Facebook wraps outbound links in `l.php?u=<target>` (also served from
+ * `l.` / `lm.` subdomains), which redirects anonymous clients to the
+ * `flx/warn/?u=<target>` interstitial behind the login wall. The external
+ * target is right there in `u`, so read it instead of requesting Facebook.
+ * Some shares encode `u` twice, so decode once more when needed. Also accepts
+ * a login wall whose `next` is such a wrapper.
+ *
+ * @param {string} url
+ * @returns {?string} the external http(s) target, or null when `url` is not
+ *   a Facebook outbound wrapper with a usable `u`
+ */
+function outboundLinkTarget(url) {
+  if (!isFacebookUrl(url)) return null;
+  const wrapper = loginWallTarget(url) || url;
+  let parsed;
+  try {
+    parsed = new URL(wrapper);
+  } catch (e) {
+    return null;
+  }
+  if (!/^\/(?:l\.php|flx\/warn\/?)$/.test(parsed.pathname)) return null;
+
+  let target = parsed.searchParams.get('u');
+  if (target && !/^https?:\/\//i.test(target)) {
+    try {
+      target = decodeURIComponent(target);
+    } catch (e) {
+      return null;
+    }
+  }
+  try {
+    const result = new URL(target);
+    return /^https?:$/.test(result.protocol) ? result.toString() : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
  * `photo.php` (and the bare `/photo` route) expose only a photo attachment id
  * and album id — no page slug. In the samples observed when this file was
  * written, Facebook redirected these to the login wall regardless of
@@ -204,4 +243,4 @@ async function resolveFacebookUrl(resolved, originalUrl = resolved) {
   return target;
 }
 
-module.exports = { isFacebookUrl, resolveFacebookUrl };
+module.exports = { isFacebookUrl, outboundLinkTarget, resolveFacebookUrl };
