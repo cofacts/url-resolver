@@ -269,6 +269,21 @@ describe('Facebook outbound links', () => {
   });
 });
 
+describe('Facebook login walls', () => {
+  beforeEach(() => fetch.mockReset());
+
+  it('stops at the first login wall instead of following nested ones', async () => {
+    const login =
+      'https://www.fb.watch/login/?next=https%3A%2F%2Ffb.watch%2Fe1Z_TwovkP%2F';
+    fetch.mockResolvedValue(makeRes({ status: 302, location: login }));
+    expect(await unshorten('https://fb.watch/e1Z_TwovkP/')).toEqual({
+      url: login,
+      status: 302,
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('intermediate mapped failures', () => {
   it.each([
     ['FetchError', 'network timeout at: http://target/'],

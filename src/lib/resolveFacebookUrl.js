@@ -42,9 +42,11 @@ const { USER_AGENT } = require('./cofactsBotFetch');
 // match via the subdomain-tolerant pattern.
 const FACEBOOK_HOSTNAME = /(?:^|\.)(?:facebook\.com|fb\.watch|fb\.com)$/i;
 
-// The embedded-post render links the post as /<page-slug>/posts/<id>. The slug
-// can contain dots (e.g. "hungwei.org"); the id is numeric or a pfbid token.
-const POST_LINK_RE = /href="\/([^"/]+)\/posts\/([^"?#]+)/;
+// The embedded-post render links the post as /<page-slug>/posts/<id> (relative
+// or absolute), or as /<page-slug>/videos/<id> / /reel/<id> for videos. The
+// slug can contain dots (e.g. "hungwei.org"); the id is numeric or a pfbid
+// token.
+const POST_LINK_RE = /href="(?:https:\/\/www\.facebook\.com)?\/((?:[^"/]+\/(?:posts|videos)|reel)\/[^"?#/]+)/;
 
 /**
  * @param {string} url
@@ -177,6 +179,40 @@ function isSluglessPhoto(url) {
 }
 
 /**
+ * `/<page>/photos/<album>/<photo-id>` also redirects anonymous clients to the
+ * login wall even though it carries the page slug, but the Embedded Post
+ * endpoint maps it to the `/<page>/posts/<id>` the photo belongs to (observed
+ * on live Facebook in Nov 2026).
+ *
+ * @param {string} url
+ * @returns {boolean}
+ */
+function isPagePhoto(url) {
+  try {
+    return /^\/[^/]+\/photos\/./.test(new URL(url).pathname);
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * `fb.watch/<code>` links 302 the CofactsBot UA to a login wall on
+ * `www.fb.watch` whose `next` nests another login wall on every hop, so they
+ * never reach the video. The Embedded Post endpoint accepts the fb.watch URL
+ * and links the real `/<page>/videos/<id>`.
+ *
+ * @param {string} url
+ * @returns {boolean}
+ */
+function isFbWatch(url) {
+  try {
+    return /(?:^|\.)fb\.watch$/i.test(new URL(url).hostname);
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
  * Call Facebook's Embedded Post endpoint for `target` and read the real
  * `/<page>/posts/<id>` URL out of the rendered HTML. In observed samples
  * this endpoint returned the public post to anonymous crawlers (including
@@ -226,7 +262,7 @@ async function recoverPostUrlViaEmbed(target) {
 
   const m = html.match(POST_LINK_RE);
   if (!m) return null;
-  return `https://www.facebook.com/${m[1]}/posts/${m[2]}`;
+  return `https://www.facebook.com/${m[1]}`;
 }
 
 /**
@@ -306,7 +342,9 @@ async function resolveFacebookUrl(resolved, originalUrl = resolved) {
   const storyPost = storyPostUrl(target);
   if (storyPost) return storyPost;
 
-  if (isSluglessPhoto(target)) {
+  const needsEmbed =
+    isSluglessPhoto(target) || isPagePhoto(target) || isFbWatch(target);
+  if (needsEmbed) {
     const recovered = await recoverPostUrlViaEmbed(target);
     if (recovered) return recovered;
   }
@@ -314,9 +352,24 @@ async function resolveFacebookUrl(resolved, originalUrl = resolved) {
   // No crawlable URL found (login wall with no recoverable target, or a
   // photo.php the embed could not map): return the original so the caller's
   // generic + puppeteer path still tries instead of a dead login / photo URL.
-  if (isLoginUrl(target) || isSluglessPhoto(target)) return originalUrl;
+  if (isLoginUrl(target) || isSluglessPhoto(target) || isPagePhoto(target)) {
+    return originalUrl;
+  }
 
   return onWwwHost(groupPostUrl(target) || target);
 }
 
-module.exports = { isFacebookUrl, outboundLinkTarget, resolveFacebookUrl };
+/**
+ * @param {string} url
+ * @returns {boolean} whether `url` is a Facebook login wall
+ */
+function isFacebookLoginUrl(url) {
+  return isFacebookUrl(url) && isLoginUrl(url);
+}
+
+module.exports = {
+  isFacebookUrl,
+  isFacebookLoginUrl,
+  outboundLinkTarget,
+  resolveFacebookUrl,
+};

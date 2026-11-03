@@ -147,6 +147,59 @@ describe('Facebook target resolution', () => {
     expect(await resolveFacebookUrl(story)).toBe(story);
   });
 
+  it('recovers the /<page>/videos/<id> of an fb.watch link via the embed endpoint', async () => {
+    const watch = 'https://fb.watch/e1Z_TwovkP/';
+    fetch.mockResolvedValueOnce(
+      makeEmbedRes({
+        // Excerpt of the live plugins/post.php response for this link.
+        text:
+          '<td class="_51m- prl _435r"><a class="_29bd" href="https://www.facebook.com/dannie.lu2022/videos/754863395648576/?ref=embed_video" target="_blank">',
+      })
+    );
+
+    expect(
+      await resolveFacebookUrl(
+        `https://www.fb.watch/login/?next=${encodeURIComponent(watch)}`,
+        watch
+      )
+    ).toBe('https://www.facebook.com/dannie.lu2022/videos/754863395648576');
+    expect(new URL(fetch.mock.calls[0][0]).searchParams.get('href')).toBe(
+      watch
+    );
+  });
+
+  it('recovers the post of a /<page>/photos/ URL via the embed endpoint', async () => {
+    const photo =
+      'https://www.facebook.com/moea.gov.tw/photos/a.335602533146596/3466249790081839/?type=3&theater';
+    fetch.mockResolvedValueOnce(
+      makeEmbedRes({
+        text: '<a href="/moea.gov.tw/posts/3466250166748468?ref=embed_post">',
+      })
+    );
+
+    expect(await resolveFacebookUrl(loginWall(photo), photo)).toBe(
+      'https://www.facebook.com/moea.gov.tw/posts/3466250166748468'
+    );
+    expect(new URL(fetch.mock.calls[0][0]).searchParams.get('href')).toBe(
+      photo
+    );
+  });
+
+  it('returns the original URL when a page photo cannot be recovered', async () => {
+    const photo = 'https://www.facebook.com/cofacts.tw/photos/a.1/2/';
+    fetch.mockResolvedValueOnce(makeEmbedRes({ text: '<div>gone</div>' }));
+    expect(await resolveFacebookUrl(loginWall(photo), SHARE)).toBe(SHARE);
+  });
+
+  it('recovers a /reel/<id> link from the embed', async () => {
+    fetch.mockResolvedValueOnce(
+      makeEmbedRes({ text: '<a href="/reel/1659802345802438/?s=1">reel</a>' })
+    );
+    expect(await resolveFacebookUrl('https://fb.watch/abc/')).toBe(
+      'https://www.facebook.com/reel/1659802345802438'
+    );
+  });
+
   it.each([
     [
       'https://m.facebook.com/login.php?next=https%3A%2F%2Fm.facebook.com%2Fgroups%2F1685234955088705%2Fpermalink%2F3405023863109797%2F',

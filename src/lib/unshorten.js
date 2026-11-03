@@ -7,7 +7,10 @@ const { ResolveError: ResolveErrorEnum } = require('./resolve_error_pb');
 const TIMEOUT = 2000; // ms
 const MAX_HOPS = 5;
 const { USER_AGENT } = require('./cofactsBotFetch');
-const { outboundLinkTarget } = require('./resolveFacebookUrl');
+const {
+  isFacebookLoginUrl,
+  outboundLinkTarget,
+} = require('./resolveFacebookUrl');
 
 const FETCH_OPTS = {
   redirect: 'manual',
@@ -91,6 +94,13 @@ async function unshorten(url) {
       next = new URL(location, current).toString();
     } catch (e) {
       return { url: current, status: lastStatus };
+    }
+
+    // Following a Facebook login wall only led to further login walls in the
+    // observed chains (fb.watch nests `next` on every hop), so stop here;
+    // resolveFacebookUrl reads its `next`.
+    if (isFacebookLoginUrl(next) && !outboundLinkTarget(next)) {
+      return { url: next, status: lastStatus };
     }
 
     if (seen.has(next)) return { url: next, status: lastStatus };
