@@ -5,6 +5,7 @@ const {
   isFacebookUrl,
   resolveFacebookUrl,
 } = require('../lib/resolveFacebookUrl');
+const { readFacebookEmbed } = require('../lib/facebookEmbed');
 const normalize = require('../lib/normalize');
 const fetchAndParseMeta = require('../lib/fetchAndParseMeta');
 const { isThreadsUrl } = require('../lib/threadsMetadata');
@@ -93,7 +94,42 @@ function resolveUrls(call) {
 
         const isGone =
           isThreadsUrl(fetchResult.canonical) && fetchResult.status === 410;
-        if (fetchResult.isIncomplete && !isGone) {
+        // Facebook serves a login wall for both live and deleted posts, and
+        // the browser hits the same wall; ask the embed instead.
+        if (fetchResult.isIncomplete && isFacebookUrl(targetUrl)) {
+          const embed = await readFacebookEmbed(targetUrl);
+          const hasMetadata = ['title', 'summary', 'topImageUrl'].some(
+            field => fetchResult[field] !== undefined
+          );
+          if (embed.unavailable && !hasMetadata) {
+            // The page gave no metadata and the embed has nothing to show.
+            // Reported as 410, the contract used for a gone Threads post, so
+            // callers skip it. Unlike Threads this covers deleted posts,
+            // non-public posts and pages the embed does not support (it shows
+            // one notice for all): 410 means "not readable by the resolver",
+            // not a confirmed deletion. Reusing the status keeps the gRPC
+            // contract unchanged.
+            fetchResult = new ScrapeResult({
+              canonical: fetchResult.canonical,
+              status: 410,
+            });
+          } else if (embed.post) {
+            // Only fill fields the page did not provide: Open Graph text is
+            // better than the embed's author name.
+            ['canonical', 'title', 'summary', 'topImageUrl'].forEach(field => {
+              if (fetchResult[field] === undefined) {
+                fetchResult[field] = embed.post[field];
+              }
+            });
+          }
+        }
+
+        // In the full-pipeline check behind this rule (Nov 2026, see PR #80),
+        // Puppeteer reached only Facebook's login wall or an error page for
+        // every Facebook URL that metadata and the embed could not read, and
+        // reported that text as the post, so Facebook is never scraped.
+        const isFacebook = isFacebookUrl(targetUrl);
+        if (fetchResult.isIncomplete && !isGone && !isFacebook) {
           fetchResult.merge(await limit(() => scrape(targetUrl)));
         }
 

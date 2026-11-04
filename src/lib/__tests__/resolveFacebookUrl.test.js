@@ -63,16 +63,16 @@ describe('Facebook target resolution', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('returns the original URL when the embed exposes no post link', async () => {
+  it('keeps the photo URL when the embed exposes no post link', async () => {
     fetch.mockResolvedValueOnce(makeEmbedRes({ text: '<div>no link</div>' }));
 
-    expect(await resolveFacebookUrl(loginWall(PHOTO), SHARE)).toBe(SHARE);
+    expect(await resolveFacebookUrl(loginWall(PHOTO), SHARE)).toBe(PHOTO);
   });
 
-  it('returns the original URL when the embed fetch fails', async () => {
+  it('keeps the photo URL when the embed fetch fails', async () => {
     fetch.mockRejectedValueOnce(new Error('network'));
 
-    expect(await resolveFacebookUrl(loginWall(PHOTO), SHARE)).toBe(SHARE);
+    expect(await resolveFacebookUrl(loginWall(PHOTO), SHARE)).toBe(PHOTO);
   });
 
   it('returns the original URL for a login wall with no recoverable next', async () => {
@@ -185,10 +185,10 @@ describe('Facebook target resolution', () => {
     );
   });
 
-  it('returns the original URL when a page photo cannot be recovered', async () => {
+  it('keeps a page photo URL that cannot be mapped to a post', async () => {
     const photo = 'https://www.facebook.com/cofacts.tw/photos/a.1/2/';
     fetch.mockResolvedValueOnce(makeEmbedRes({ text: '<div>gone</div>' }));
-    expect(await resolveFacebookUrl(loginWall(photo), SHARE)).toBe(SHARE);
+    expect(await resolveFacebookUrl(loginWall(photo), SHARE)).toBe(photo);
   });
 
   it('recovers a /reel/<id> link from the embed', async () => {
@@ -252,7 +252,7 @@ describe('Facebook target resolution', () => {
     response.body = { destroy: jest.fn() };
     response.text = jest.fn();
     fetch.mockResolvedValueOnce(response);
-    expect(await resolveFacebookUrl(PHOTO, SHARE)).toBe(SHARE);
+    expect(await resolveFacebookUrl(PHOTO, SHARE)).toBe(PHOTO);
     expect(response.body.destroy).toHaveBeenCalledTimes(1);
     expect(fetch.mock.calls[0][1].signal.aborted).toBe(true);
     expect(response.text).not.toHaveBeenCalled();
