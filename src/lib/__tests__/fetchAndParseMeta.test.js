@@ -47,6 +47,22 @@ describe('shared metadata fetch', () => {
     expect(fetch.mock.calls[0][1].headers['User-Agent']).toMatch(/CofactsBot/);
   });
 
+  it.each([
+    // share link redirect with a per-share token
+    ['https://www.threads.com/@user/post/CODE?xmt=TOKEN'],
+    // /media and slug suffixes declare the bare post URL
+    ['https://www.threads.com/@user/post/CODE/media'],
+    ['https://www.threads.com/@user/post/CODE/%E7%BE%8E%E4%B8%AD'],
+  ])('uses the declared Threads post URL when served from %s', async served => {
+    fetch.mockResolvedValueOnce(
+      response(
+        served,
+        '<meta property="og:url" content="https://www.threads.com/&#064;user/post/CODE"><meta property="og:title" content="Name (@user) on Threads"><meta property="og:description" content="Post body">'
+      )
+    );
+    expect((await fetchAndParseMeta(served)).canonical).toBe(POST);
+  });
+
   it('ignores a homepage og:url declared on an article page', async () => {
     const article = 'https://news.test/article/1';
     fetch.mockResolvedValueOnce(
