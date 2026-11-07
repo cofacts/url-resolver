@@ -47,6 +47,17 @@ describe('shared metadata fetch', () => {
     expect(fetch.mock.calls[0][1].headers['User-Agent']).toMatch(/CofactsBot/);
   });
 
+  it('ignores a homepage og:url declared on an article page', async () => {
+    const article = 'https://news.test/article/1';
+    fetch.mockResolvedValueOnce(
+      response(
+        article,
+        '<meta property="og:url" content="https://news.test/"><meta property="og:title" content="Article">'
+      )
+    );
+    expect((await fetchAndParseMeta(article)).canonical).toBe(article);
+  });
+
   it('maps a deleted-post redirect to 410 even if the response is not HTML', async () => {
     fetch.mockResolvedValueOnce(
       response(

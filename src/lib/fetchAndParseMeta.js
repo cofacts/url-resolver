@@ -1,6 +1,7 @@
 const parseMeta = require('./parseMeta');
 const { cofactsBotFetch } = require('./cofactsBotFetch');
 const ScrapeResult = require('./ScrapeResult');
+const pickCanonical = require('./pickCanonical');
 const { isThreadsGone, applyThreadsMetadata } = require('./threadsMetadata');
 const { isFacebookUrl, isFacebookLoginUrl } = require('./resolveFacebookUrl');
 
@@ -73,6 +74,7 @@ async function fetchAndParseMeta(url) {
     return new ScrapeResult({ canonical: url, status: response.status });
   }
   result.status = response.status;
+  result.canonical = pickCanonical(result.canonical, response.url);
   return applyThreadsMetadata(result, response.url, response.status);
 }
 

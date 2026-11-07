@@ -285,14 +285,31 @@ async function scrapePage(url, page) {
     /* istanbul ignore next */
     canonical = await page.evaluate(() => {
       const canonicalLink = document.querySelector('link[rel=canonical]');
-      if (canonicalLink) return canonicalLink.href;
-
       const ogType = document.querySelector('meta[property="og:type"]');
       const isVideo = ogType && ogType.content.startsWith('video');
       const ogUrlMeta = document.querySelector('meta[property="og:url"]');
-      if (!isVideo && ogUrlMeta) return ogUrlMeta.content;
+      const declared = canonicalLink
+        ? canonicalLink.href
+        : !isVideo && ogUrlMeta && ogUrlMeta.content;
+      if (!declared) return window.location.href;
 
-      return window.location.href;
+      // Same rule as lib/pickCanonical.js, inlined because this runs in the page.
+      const isSiteRoot = u =>
+        /^\/(?:index\.(?:html?|php))?$/i.test(u.pathname) &&
+        [...new URLSearchParams(u.search).keys()].every(key =>
+          /^(?:utm_\w+|fbclid|gclid)$/i.test(key)
+        );
+      try {
+        if (
+          isSiteRoot(new URL(declared, window.location.href)) &&
+          !isSiteRoot(window.location)
+        ) {
+          return window.location.href;
+        }
+      } catch (e) {
+        return window.location.href;
+      }
+      return declared;
     });
   } catch (e) {
     // Maybe context destroyed error (caused by JS / HTML redirects)
