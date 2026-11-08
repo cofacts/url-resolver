@@ -2,7 +2,12 @@ jest.mock('../../lib/resolveFacebookUrl', () => ({
   ...jest.requireActual('../../lib/resolveFacebookUrl'),
   resolveFacebookUrl: jest.fn(),
 }));
+jest.mock('../../lib/facebookEmbed', () => ({
+  ...jest.requireActual('../../lib/facebookEmbed'),
+  readFacebookEmbed: jest.fn(),
+}));
 const { resolveFacebookUrl } = require('../../lib/resolveFacebookUrl');
+const { readFacebookEmbed } = require('../../lib/facebookEmbed');
 jest.mock('../../lib/unshorten');
 jest.mock('../../lib/normalize');
 jest.mock('../../lib/fetchAndParseMeta');
@@ -498,6 +503,9 @@ describe('target resolution through resolveUrls', () => {
     normalize.mockReset().mockImplementation(url => url);
     unshorten.mockReset();
     resolveFacebookUrl.mockReset();
+    readFacebookEmbed
+      .mockReset()
+      .mockResolvedValue({ unavailable: false, post: null });
     fetchAndParseMeta.mockReset().mockImplementation(
       async url =>
         new ScrapeResult({
@@ -565,6 +573,114 @@ describe('target resolution through resolveUrls', () => {
     );
   });
 
+  it('reports 410 when the page has no metadata and the embed is unavailable', async () => {
+    unshorten.mockResolvedValue({ url: post, status: 200 });
+    resolveFacebookUrl.mockResolvedValue(post);
+    fetchAndParseMeta.mockResolvedValue(
+      new ScrapeResult({ canonical: post, status: 200 })
+    );
+    readFacebookEmbed.mockResolvedValue({ unavailable: true, post: null });
+    const call = makeCall(post);
+    await resolveUrls(call);
+    expect(readFacebookEmbed).toHaveBeenCalledWith(post);
+    expect(scrape).not.toHaveBeenCalled();
+    expect(call.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: post,
+        canonical: post,
+        status: 410,
+        successfully_resolved: true,
+      })
+    );
+  });
+
+  it('keeps partial page metadata when the embed is unavailable', async () => {
+    unshorten.mockResolvedValue({ url: post, status: 200 });
+    resolveFacebookUrl.mockResolvedValue(post);
+    fetchAndParseMeta.mockResolvedValue(
+      new ScrapeResult({
+        canonical: post,
+        title: 'Group | Facebook',
+        status: 200,
+      })
+    );
+    readFacebookEmbed.mockResolvedValue({ unavailable: true, post: null });
+    const call = makeCall(post);
+    await resolveUrls(call);
+    expect(call.write).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Group | Facebook', status: 200 })
+    );
+  });
+
+  it('uses the post read from the embed instead of scraping the login wall', async () => {
+    const photo = 'https://www.facebook.com/photo/?fbid=1&set=gm.2';
+    unshorten.mockResolvedValue({ url: photo, status: 200 });
+    resolveFacebookUrl.mockResolvedValue(photo);
+    fetchAndParseMeta.mockResolvedValue(
+      new ScrapeResult({ canonical: photo, status: 200 })
+    );
+    readFacebookEmbed.mockResolvedValue({
+      unavailable: false,
+      post: new ScrapeResult({
+        canonical: photo,
+        title: 'author',
+        summary: 'message',
+        topImageUrl: 'image',
+      }),
+    });
+    const call = makeCall(photo);
+    await resolveUrls(call);
+    expect(scrape).not.toHaveBeenCalled();
+    expect(call.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'author',
+        summary: 'message',
+        top_image_url: 'image',
+        status: 200,
+        successfully_resolved: true,
+      })
+    );
+  });
+
+  it('fills only missing fields from the embed', async () => {
+    unshorten.mockResolvedValue({ url: post, status: 200 });
+    resolveFacebookUrl.mockResolvedValue(post);
+    fetchAndParseMeta.mockResolvedValue(
+      new ScrapeResult({
+        canonical: post,
+        title: 'OG title',
+        summary: 'OG description',
+        status: 200,
+      })
+    );
+    readFacebookEmbed.mockResolvedValue({
+      unavailable: false,
+      post: new ScrapeResult({
+        canonical: post,
+        title: 'author',
+        summary: '',
+        topImageUrl: 'image',
+      }),
+    });
+    const call = makeCall(post);
+    await resolveUrls(call);
+    expect(call.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'OG title',
+        summary: 'OG description',
+        top_image_url: 'image',
+        status: 200,
+      })
+    );
+  });
+
+  it('does not check availability for complete or non-Facebook results', async () => {
+    unshorten.mockResolvedValue({ url: post, status: 200 });
+    resolveFacebookUrl.mockResolvedValue(post);
+    await resolveUrls(makeCall(post));
+    expect(readFacebookEmbed).not.toHaveBeenCalled();
+  });
+
   it('reports NOT_REACHABLE for a failed non-Facebook redirect lookup', async () => {
     unshorten.mockRejectedValue(
       new ResolveError(ResolveErrorEnum.NOT_REACHABLE)
@@ -581,7 +697,7 @@ describe('target resolution through resolveUrls', () => {
     expect(resolveFacebookUrl).not.toHaveBeenCalled();
   });
 
-  it('continues metadata and browser fallback for Facebook when unshorten fails', async () => {
+  it('continues metadata but not browser fallback for Facebook when unshorten fails', async () => {
     unshorten.mockRejectedValue(
       new ResolveError(ResolveErrorEnum.NOT_REACHABLE)
     );
@@ -591,7 +707,8 @@ describe('target resolution through resolveUrls', () => {
     await resolveUrls(call);
     expect(resolveFacebookUrl).toHaveBeenCalledWith(share, share);
     expect(fetchAndParseMeta).toHaveBeenCalledWith(share);
-    expect(scrape).toHaveBeenCalledWith(share);
+    expect(readFacebookEmbed).toHaveBeenCalledWith(share);
+    expect(scrape).not.toHaveBeenCalled();
     expect(call.write).toHaveBeenCalledWith(
       expect.objectContaining({
         successfully_resolved: true,

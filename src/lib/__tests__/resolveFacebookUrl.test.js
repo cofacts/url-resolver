@@ -63,16 +63,16 @@ describe('Facebook target resolution', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('returns the original URL when the embed exposes no post link', async () => {
+  it('keeps the photo URL when the embed exposes no post link', async () => {
     fetch.mockResolvedValueOnce(makeEmbedRes({ text: '<div>no link</div>' }));
 
-    expect(await resolveFacebookUrl(loginWall(PHOTO), SHARE)).toBe(SHARE);
+    expect(await resolveFacebookUrl(loginWall(PHOTO), SHARE)).toBe(PHOTO);
   });
 
-  it('returns the original URL when the embed fetch fails', async () => {
+  it('keeps the photo URL when the embed fetch fails', async () => {
     fetch.mockRejectedValueOnce(new Error('network'));
 
-    expect(await resolveFacebookUrl(loginWall(PHOTO), SHARE)).toBe(SHARE);
+    expect(await resolveFacebookUrl(loginWall(PHOTO), SHARE)).toBe(PHOTO);
   });
 
   it('returns the original URL for a login wall with no recoverable next', async () => {
@@ -101,6 +101,146 @@ describe('Facebook target resolution', () => {
     );
   });
 
+  it('maps story.php behind a login wall to /<owner>/posts/<post>', async () => {
+    // Redirect chain observed in prod for /share/v/1FKkYi3c5x/.
+    const story =
+      'https://www.facebook.com/story.php?story_fbid=1756694823130318&id=100063694510630&mibextid=WC7FNe&rdid=x';
+
+    expect(
+      await resolveFacebookUrl(
+        loginWall(story),
+        'https://www.facebook.com/share/v/1FKkYi3c5x/'
+      )
+    ).toBe('https://www.facebook.com/100063694510630/posts/1756694823130318');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('maps direct m. story.php and permalink.php, including pfbid ids', async () => {
+    expect(
+      await resolveFacebookUrl(
+        'https://m.facebook.com/story.php?story_fbid=pfbid02cxy5MMHc6vMghJ5hFPW&id=100005655455633'
+      )
+    ).toBe(
+      'https://www.facebook.com/100005655455633/posts/pfbid02cxy5MMHc6vMghJ5hFPW'
+    );
+    expect(
+      await resolveFacebookUrl(
+        'https://www.facebook.com/permalink.php?id=307636219707522&story_fbid=1261214907682977'
+      )
+    ).toBe('https://www.facebook.com/307636219707522/posts/1261214907682977');
+  });
+
+  it.each([
+    ['&id=276861822357066，聽完之後', '276861822357066'],
+    ['&id=100012492390353?sfnsn=mo&extid=a', '100012492390353'],
+    ['&id=100000492720842。', '100000492720842'],
+  ])('ignores trailing text after the owner id (%s)', async (suffix, owner) => {
+    expect(
+      await resolveFacebookUrl(
+        `https://m.facebook.com/story.php?story_fbid=1482358428474060${suffix}`
+      )
+    ).toBe(`https://www.facebook.com/${owner}/posts/1482358428474060`);
+  });
+
+  it('leaves story.php without an owner id unchanged', async () => {
+    const story = 'https://www.facebook.com/story.php?story_fbid=123';
+    expect(await resolveFacebookUrl(story)).toBe(story);
+  });
+
+  it('recovers the /<page>/videos/<id> of an fb.watch link via the embed endpoint', async () => {
+    const watch = 'https://fb.watch/e1Z_TwovkP/';
+    fetch.mockResolvedValueOnce(
+      makeEmbedRes({
+        // Excerpt of the live plugins/post.php response for this link.
+        text:
+          '<td class="_51m- prl _435r"><a class="_29bd" href="https://www.facebook.com/dannie.lu2022/videos/754863395648576/?ref=embed_video" target="_blank">',
+      })
+    );
+
+    expect(
+      await resolveFacebookUrl(
+        `https://www.fb.watch/login/?next=${encodeURIComponent(watch)}`,
+        watch
+      )
+    ).toBe('https://www.facebook.com/dannie.lu2022/videos/754863395648576');
+    expect(new URL(fetch.mock.calls[0][0]).searchParams.get('href')).toBe(
+      watch
+    );
+  });
+
+  it('recovers the post of a /<page>/photos/ URL via the embed endpoint', async () => {
+    const photo =
+      'https://www.facebook.com/moea.gov.tw/photos/a.335602533146596/3466249790081839/?type=3&theater';
+    fetch.mockResolvedValueOnce(
+      makeEmbedRes({
+        text: '<a href="/moea.gov.tw/posts/3466250166748468?ref=embed_post">',
+      })
+    );
+
+    expect(await resolveFacebookUrl(loginWall(photo), photo)).toBe(
+      'https://www.facebook.com/moea.gov.tw/posts/3466250166748468'
+    );
+    expect(new URL(fetch.mock.calls[0][0]).searchParams.get('href')).toBe(
+      photo
+    );
+  });
+
+  it('keeps a page photo URL that cannot be mapped to a post', async () => {
+    const photo = 'https://www.facebook.com/cofacts.tw/photos/a.1/2/';
+    fetch.mockResolvedValueOnce(makeEmbedRes({ text: '<div>gone</div>' }));
+    expect(await resolveFacebookUrl(loginWall(photo), SHARE)).toBe(photo);
+  });
+
+  it('recovers a /reel/<id> link from the embed', async () => {
+    fetch.mockResolvedValueOnce(
+      makeEmbedRes({ text: '<a href="/reel/1659802345802438/?s=1">reel</a>' })
+    );
+    expect(await resolveFacebookUrl('https://fb.watch/abc/')).toBe(
+      'https://www.facebook.com/reel/1659802345802438'
+    );
+  });
+
+  it.each([
+    [
+      'https://m.facebook.com/login.php?next=https%3A%2F%2Fm.facebook.com%2Fgroups%2F1685234955088705%2Fpermalink%2F3405023863109797%2F',
+      'https://www.facebook.com/groups/1685234955088705/permalink/3405023863109797/',
+    ],
+    [
+      'https://zh-tw.facebook.com/help/262314300536014',
+      'https://www.facebook.com/help/262314300536014',
+    ],
+    [
+      'https://www.facebook.com/a/posts/1',
+      'https://www.facebook.com/a/posts/1',
+    ],
+    [
+      'https://ja-jp.facebook.com/dietician.tw/posts/1',
+      'https://www.facebook.com/dietician.tw/posts/1',
+    ],
+    ['https://fb.watch/abc/', null],
+    ['https://developers.facebook.com/docs/plugins/embedded-posts/', null],
+    ['https://business.facebook.com/news.ebc/videos/1/', null],
+    ['https://web.facebook.com/a/posts/1', null],
+  ])(
+    'moves %s to the www host only for known aliases',
+    async (input, expected) => {
+      fetch.mockResolvedValue(makeEmbedRes({ text: '<div></div>' }));
+      expect(await resolveFacebookUrl(input)).toBe(expected || input);
+    }
+  );
+
+  it('maps the old group ?view=permalink link to /groups/<g>/posts/<id>/', async () => {
+    expect(
+      await resolveFacebookUrl(
+        'https://m.facebook.com/groups/1726485900912990?view=permalink&id=2670283996533171'
+      )
+    ).toBe(
+      'https://www.facebook.com/groups/1726485900912990/posts/2670283996533171/'
+    );
+    const home = 'https://www.facebook.com/groups/1726485900912990/';
+    expect(await resolveFacebookUrl(home)).toBe(home);
+  });
+
   it('does not return a non-HTTP next target', async () => {
     expect(
       await resolveFacebookUrl(loginWall('javascript:alert(1)'), SHARE)
@@ -112,7 +252,7 @@ describe('Facebook target resolution', () => {
     response.body = { destroy: jest.fn() };
     response.text = jest.fn();
     fetch.mockResolvedValueOnce(response);
-    expect(await resolveFacebookUrl(PHOTO, SHARE)).toBe(SHARE);
+    expect(await resolveFacebookUrl(PHOTO, SHARE)).toBe(PHOTO);
     expect(response.body.destroy).toHaveBeenCalledTimes(1);
     expect(fetch.mock.calls[0][1].signal.aborted).toBe(true);
     expect(response.text).not.toHaveBeenCalled();

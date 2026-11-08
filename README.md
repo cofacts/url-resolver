@@ -22,15 +22,23 @@ To access the gRPC service, you can see `docker-test.js` for an example that use
 ## CofactsBot
 
 When a client submits a URL for resolution, this service follows redirects and
-fetches the target page to extract its title, summary, and image URL. Facebook
-photo links may also require fetching Facebook's Embedded Post endpoint to
-recover the post URL. These HTTP requests identify themselves as
+fetches the target page to extract its title, summary, and image URL. Some
+Facebook links also require fetching Facebook's Embedded Post endpoint to
+recover the post URL, check whether the embed can display it, or read the post
+when no crawlable URL exists. These HTTP requests identify themselves as
 `CofactsBot/1.0 (+https://github.com/cofacts/url-resolver)`; they are triggered by
 resolution requests, rather than a scheduled crawl.
 
+For Facebook URLs, the resolver returns status `410` when the page provides no
+metadata and the Embedded Post endpoint reports the content as unavailable.
+Here, `410` means the resolver cannot read the content; it does not confirm that
+the post was deleted. The same response can occur for non-public posts or URLs
+the embed does not support, including pages, profiles, and groups. An embed
+request failure alone does not establish this status.
+
 Set `URL_RESOLVER_USER_AGENT` to override this shared HTTP User-Agent. If metadata
-is incomplete or fetching fails, the service may open the page in Puppeteer,
-which uses a separate browser User-Agent configurable with `SCRAPE_USER_AGENT`.
+is incomplete or fetching fails, the service may open the page in Puppeteer
+(never for Facebook, which only shows its login wall to it), which uses a separate browser User-Agent configurable with `SCRAPE_USER_AGENT`.
 
 ## Development
 

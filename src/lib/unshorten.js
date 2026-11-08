@@ -7,6 +7,10 @@ const { ResolveError: ResolveErrorEnum } = require('./resolve_error_pb');
 const TIMEOUT = 2000; // ms
 const MAX_HOPS = 5;
 const { USER_AGENT } = require('./cofactsBotFetch');
+const {
+  isFacebookLoginUrl,
+  outboundLinkTarget,
+} = require('./resolveFacebookUrl');
 
 const FETCH_OPTS = {
   redirect: 'manual',
@@ -33,6 +37,14 @@ function mapFetchError(e) {
 }
 
 /**
+ * @param {string} url
+ * @returns {?string} `url` with the https scheme, or null when not http
+ */
+function httpsUpgrade(url) {
+  return /^http:\/\//i.test(url) ? url.replace(/^http:/i, 'https:') : null;
+}
+
+/**
  * Follow up to MAX_HOPS redirects starting at `url`. HEAD is preferred; falls
  * back to GET when the server rejects HEAD with 405 or 501.
  *
@@ -46,6 +58,16 @@ async function unshorten(url) {
   const seen = new Set([current]);
 
   for (let hop = 0; hop < MAX_HOPS; hop++) {
+    // Any hop (the input, a shortener target, a login `next`) may be a
+    // Facebook outbound wrapper; continue from its target without fetching it.
+    const outbound = outboundLinkTarget(current);
+    if (outbound) {
+      if (seen.has(outbound)) return { url: outbound, status: lastStatus };
+      seen.add(outbound);
+      current = outbound;
+      continue;
+    }
+
     let res;
     const controller = new AbortController();
     const options = { ...FETCH_OPTS, signal: controller.signal };
@@ -60,8 +82,18 @@ async function unshorten(url) {
       if (res.body) res.body.destroy();
     } catch (e) {
       const mapped = mapFetchError(e);
+      // Some sites no longer listen on port 80; browsers upgrade such links to
+      // https, so retry the same hop over https once.
+      const httpsUrl = httpsUpgrade(current);
+      const unreachable =
+        mapped && mapped.returnedError === ResolveErrorEnum.NOT_REACHABLE;
+      if (unreachable && httpsUrl && !seen.has(httpsUrl)) {
+        seen.add(httpsUrl);
+        current = httpsUrl;
+        continue;
+      }
       // Once a redirect target is known, let metadata/browser fetching try it.
-      if (mapped && hop === 0) throw mapped;
+      if (mapped && lastStatus === 0) throw mapped;
       // eslint-disable-next-line no-console
       console.error('[unshorten]', current, e);
       return { url: current, status: lastStatus };
@@ -80,6 +112,13 @@ async function unshorten(url) {
       next = new URL(location, current).toString();
     } catch (e) {
       return { url: current, status: lastStatus };
+    }
+
+    // Following a Facebook login wall only led to further login walls in the
+    // observed chains (fb.watch nests `next` on every hop), so stop here;
+    // resolveFacebookUrl reads its `next`.
+    if (isFacebookLoginUrl(next) && !outboundLinkTarget(next)) {
+      return { url: next, status: lastStatus };
     }
 
     if (seen.has(next)) return { url: next, status: lastStatus };

@@ -8,9 +8,11 @@ const { ResolveError: ResolveErrorEnum } = require('./resolve_error_pb');
  * @param {string} url
  * @param {?Function} [fetchOverride] optional unfurl-compatible fetch, used to
  *   run the request with a custom User-Agent. See lib/cofactsBotFetch.js.
+ * @param {{ structuredOnly?: boolean }} [options] structuredOnly skips the
+ *   plain <title> / <meta name="description"> fallbacks.
  * @returns {Promise<ScrapeResult>}
  */
-async function parseMeta(url, fetchOverride) {
+async function parseMeta(url, fetchOverride, { structuredOnly = false } = {}) {
   let result;
   try {
     result = await unfurl(url, fetchOverride ? { fetch: fetchOverride } : {});
@@ -30,11 +32,11 @@ async function parseMeta(url, fetchOverride) {
       get('oEmbed', 'title') ||
       get('twitter_card', 'title') ||
       get('open_graph', 'title') ||
-      get('title'),
+      (structuredOnly ? undefined : get('title')),
     summary:
       get('twitter_card', 'description') ||
       get('open_graph', 'description') ||
-      get('description'),
+      (structuredOnly ? undefined : get('description')),
     topImageUrl:
       get('oEmbed', 'thumbnails', 0, 'url') ||
       get('twitter_card', 'images', 0, 'url') ||

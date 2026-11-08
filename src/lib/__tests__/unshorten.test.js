@@ -163,17 +163,17 @@ describe('unshorten', () => {
   it('throws ResolveError on network timeout', async () => {
     const err = new Error('network timeout at:');
     err.name = 'FetchError';
-    fetch.mockRejectedValueOnce(err);
+    fetch.mockRejectedValue(err);
     await expect(unshorten(URL)).rejects.toThrow(ResolveError);
   });
 
   it('throws ResolveError on socket hang up', async () => {
-    fetch.mockRejectedValueOnce(new Error('reason: socket hang up'));
+    fetch.mockRejectedValue(new Error('reason: socket hang up'));
     await expect(unshorten(URL)).rejects.toThrow(ResolveError);
   });
 
   it('throws ResolveError on ECONNREFUSED', async () => {
-    fetch.mockRejectedValueOnce(new Error('reason: connect ECONNREFUSED'));
+    fetch.mockRejectedValue(new Error('reason: connect ECONNREFUSED'));
     await expect(unshorten(URL)).rejects.toThrow(ResolveError);
   });
 
@@ -193,6 +193,133 @@ describe('unshorten', () => {
   });
 });
 
+describe('Facebook outbound links', () => {
+  beforeEach(() => fetch.mockReset());
+
+  it('continues from l.php target without requesting Facebook', async () => {
+    fetch.mockResolvedValueOnce(makeRes({ status: 200 }));
+    expect(
+      await unshorten(
+        'https://lm.facebook.com/l.php?u=https%3A%2F%2Fwww.storm.mg%2Flifestyle%2F480609&h=AT2'
+      )
+    ).toEqual({ url: 'https://www.storm.mg/lifestyle/480609', status: 200 });
+    expect(fetch.mock.calls.map(([url]) => url)).toEqual([
+      'https://www.storm.mg/lifestyle/480609',
+    ]);
+  });
+
+  it('unwraps flx/warn and a double-encoded u', async () => {
+    fetch.mockResolvedValue(makeRes({ status: 200 }));
+    expect(
+      (
+        await unshorten(
+          'https://m.facebook.com/flx/warn/?u=http%3A%2F%2Fldp.ink%2F6o1Gt&h=AU'
+        )
+      ).url
+    ).toBe('http://ldp.ink/6o1Gt');
+    expect(
+      (
+        await unshorten(
+          'https://l.facebook.com/l.php?u=http%253A%252F%252Fexample.org%252Fa.html'
+        )
+      ).url
+    ).toBe('http://example.org/a.html');
+  });
+
+  it('unwraps an outbound link reached through a shortener and login wall', async () => {
+    const warn =
+      'https://www.facebook.com/flx/warn/?u=https%3A%2F%2Flc.cx%2FTuF43-&h=AU';
+    fetch
+      .mockResolvedValueOnce(
+        makeRes({
+          status: 302,
+          location: 'https://facebook.com/l.php?u=https://lc.cx/TuF43-',
+        })
+      )
+      .mockResolvedValueOnce(makeRes({ status: 301, location: 'http://news/' }))
+      .mockResolvedValueOnce(makeRes({ status: 200 }));
+    expect(await unshorten('https://bit.ly/x')).toEqual({
+      url: 'http://news/',
+      status: 200,
+    });
+    expect(fetch.mock.calls.map(([url]) => url)).toEqual([
+      'https://bit.ly/x',
+      'https://lc.cx/TuF43-',
+      'http://news/',
+    ]);
+
+    fetch.mockReset().mockResolvedValueOnce(makeRes({ status: 200 }));
+    expect(
+      (
+        await unshorten(
+          `https://www.facebook.com/login/?next=${encodeURIComponent(warn)}`
+        )
+      ).url
+    ).toBe('https://lc.cx/TuF43-');
+  });
+
+  it('keeps a wrapper whose u is missing or not http(s)', async () => {
+    fetch.mockResolvedValue(makeRes({ status: 200 }));
+    for (const url of [
+      'https://www.facebook.com/l.php',
+      'https://www.facebook.com/l.php?u=javascript%3Aalert(1)',
+    ]) {
+      expect((await unshorten(url)).url).toBe(url);
+    }
+  });
+});
+
+describe('https upgrade', () => {
+  beforeEach(() => fetch.mockReset());
+
+  const connectTimeout = () => {
+    const error = new Error('network timeout at: http://site/');
+    error.name = 'FetchError';
+    return error;
+  };
+
+  it('retries an unreachable http hop over https', async () => {
+    fetch
+      .mockRejectedValueOnce(connectTimeout())
+      .mockResolvedValueOnce(
+        makeRes({ status: 301, location: 'https://site/article/1' })
+      )
+      .mockResolvedValueOnce(makeRes({ status: 200 }));
+    expect(await unshorten('http://site/AArticle.aspx?id=1')).toEqual({
+      url: 'https://site/article/1',
+      status: 200,
+    });
+    expect(fetch.mock.calls[1][0]).toBe('https://site/AArticle.aspx?id=1');
+  });
+
+  it('still throws when https is unreachable too', async () => {
+    fetch.mockRejectedValue(connectTimeout());
+    await expect(unshorten('http://site/')).rejects.toThrow(ResolveError);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry an https URL', async () => {
+    fetch.mockRejectedValue(connectTimeout());
+    await expect(unshorten('https://site/')).rejects.toThrow(ResolveError);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Facebook login walls', () => {
+  beforeEach(() => fetch.mockReset());
+
+  it('stops at the first login wall instead of following nested ones', async () => {
+    const login =
+      'https://www.fb.watch/login/?next=https%3A%2F%2Ffb.watch%2Fe1Z_TwovkP%2F';
+    fetch.mockResolvedValue(makeRes({ status: 302, location: login }));
+    expect(await unshorten('https://fb.watch/e1Z_TwovkP/')).toEqual({
+      url: login,
+      status: 302,
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('intermediate mapped failures', () => {
   it.each([
     ['FetchError', 'network timeout at: http://target/'],
@@ -207,9 +334,10 @@ describe('intermediate mapped failures', () => {
       .mockResolvedValueOnce(
         makeRes({ status: 302, location: 'http://target/' })
       )
-      .mockRejectedValueOnce(error);
+      .mockRejectedValue(error);
+    const upgraded = !/altnames/.test(message);
     expect(await unshorten(URL)).toEqual({
-      url: 'http://target/',
+      url: upgraded ? 'https://target/' : 'http://target/',
       status: 302,
     });
     expect(fetch.mock.calls[1][1].signal.aborted).toBe(true);

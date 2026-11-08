@@ -47,6 +47,33 @@ describe('shared metadata fetch', () => {
     expect(fetch.mock.calls[0][1].headers['User-Agent']).toMatch(/CofactsBot/);
   });
 
+  it.each([
+    // share link redirect with a per-share token
+    ['https://www.threads.com/@user/post/CODE?xmt=TOKEN'],
+    // /media and slug suffixes declare the bare post URL
+    ['https://www.threads.com/@user/post/CODE/media'],
+    ['https://www.threads.com/@user/post/CODE/%E7%BE%8E%E4%B8%AD'],
+  ])('uses the declared Threads post URL when served from %s', async served => {
+    fetch.mockResolvedValueOnce(
+      response(
+        served,
+        '<meta property="og:url" content="https://www.threads.com/&#064;user/post/CODE"><meta property="og:title" content="Name (@user) on Threads"><meta property="og:description" content="Post body">'
+      )
+    );
+    expect((await fetchAndParseMeta(served)).canonical).toBe(POST);
+  });
+
+  it('ignores a homepage og:url declared on an article page', async () => {
+    const article = 'https://news.test/article/1';
+    fetch.mockResolvedValueOnce(
+      response(
+        article,
+        '<meta property="og:url" content="https://news.test/"><meta property="og:title" content="Article">'
+      )
+    );
+    expect((await fetchAndParseMeta(article)).canonical).toBe(article);
+  });
+
   it('maps a deleted-post redirect to 410 even if the response is not HTML', async () => {
     fetch.mockResolvedValueOnce(
       response(
@@ -86,5 +113,77 @@ describe('shared metadata fetch', () => {
     await expect(fetchAndParseMeta('https://example.com/')).rejects.toThrow();
     fetch.mockResolvedValueOnce(response(POST, '', 403));
     await expect(fetchAndParseMeta(POST)).rejects.toThrow();
+  });
+});
+
+describe('Facebook metadata', () => {
+  beforeEach(() => fetch.mockReset());
+  const PAGE = 'https://www.facebook.com/chunyileefans/';
+
+  it('ignores the placeholder <title> of a page without Open Graph tags', async () => {
+    fetch.mockResolvedValueOnce(
+      response(
+        'https://www.facebook.com/reel/176623204907030/',
+        '<title>Facebook</title><meta name="description" content="x">'
+      )
+    );
+    const result = await fetchAndParseMeta(
+      'https://www.facebook.com/reel/176623204907030/'
+    );
+    expect(result.title).toBeUndefined();
+    expect(result.summary).toBeUndefined();
+    expect(result.isIncomplete).toBe(true);
+  });
+
+  it('drops the metadata of the login page a request was redirected to', async () => {
+    fetch.mockResolvedValueOnce(
+      response(
+        `https://m.facebook.com/login.php?next=${encodeURIComponent(PAGE)}`,
+        '<meta property="og:title" content="登入或註冊即可查看"><meta property="og:description" content="到 Facebook 上查看貼文"><meta property="og:image" content="https://static.xx.fbcdn.net/logo.png">'
+      )
+    );
+    const result = await fetchAndParseMeta(PAGE);
+    expect(result.canonical).toBe(PAGE);
+    expect(result.title).toBeUndefined();
+    expect(result.status).toBe(200);
+    expect(result.isIncomplete).toBe(true);
+  });
+
+  it('drops the metadata of a login page served without a redirect', async () => {
+    const share = 'https://www.facebook.com/share/r/3QpmU2QPhtKevWDw/';
+    fetch.mockResolvedValueOnce(
+      response(
+        share,
+        '<meta property="og:title" content="登入或註冊即可查看"><meta property="og:description" content="到 Facebook 上查看貼文"><form id="login_form" action="https://www.facebook.com/login/device-based/regular/login/" method="post"></form>'
+      )
+    );
+    const result = await fetchAndParseMeta(share);
+    expect(result.title).toBeUndefined();
+    expect(result.summary).toBeUndefined();
+    expect(result.isIncomplete).toBe(true);
+  });
+
+  it('keeps Open Graph metadata of a readable post', async () => {
+    const post =
+      'https://www.facebook.com/liu.chia.chan/posts/2800732396625767';
+    fetch.mockResolvedValueOnce(
+      response(
+        post,
+        '<title>ignored</title><meta property="og:title" content="劉家昌"><meta property="og:description" content="body"><meta property="og:image" content="https://scontent.xx.fbcdn.net/i.jpg">'
+      )
+    );
+    const result = await fetchAndParseMeta(post);
+    expect(result.title).toBe('劉家昌');
+    expect(result.summary).toBe('body');
+    expect(result.isIncomplete).toBe(false);
+  });
+
+  it('still falls back to <title> for other sites', async () => {
+    fetch.mockResolvedValueOnce(
+      response('https://example.com/', '<title>Example</title>')
+    );
+    expect((await fetchAndParseMeta('https://example.com/')).title).toBe(
+      'Example'
+    );
   });
 });

@@ -61,7 +61,6 @@ function applyThreadsMetadata(result, finalUrl, status) {
   if (isThreadsGone(finalUrl, status)) {
     return new ScrapeResult({ canonical: finalUrl, status: 410 });
   }
-  result.canonical = finalUrl;
   const title = (result.title || '').trim().toLowerCase();
   const summary = (result.summary || '').trim();
   if (
