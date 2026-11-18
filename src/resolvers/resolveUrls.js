@@ -6,6 +6,11 @@ const {
   resolveFacebookUrl,
 } = require('../lib/resolveFacebookUrl');
 const { readFacebookEmbed } = require('../lib/facebookEmbed');
+const {
+  isYouTubeUrl,
+  isPlaceholderTitle,
+  readYouTubeOembed,
+} = require('../lib/youtubeOembed');
 const normalize = require('../lib/normalize');
 const fetchAndParseMeta = require('../lib/fetchAndParseMeta');
 const { isThreadsUrl } = require('../lib/threadsMetadata');
@@ -121,6 +126,23 @@ function resolveUrls(call) {
                 fetchResult[field] = embed.post[field];
               }
             });
+          }
+        }
+
+        // YouTube withholds the video title from non-allowlisted clients and
+        // its pages break the browser fallback (Trusted Types), so read the
+        // title and thumbnail from oEmbed instead.
+        if (
+          isYouTubeUrl(targetUrl) &&
+          (fetchResult.isIncomplete || isPlaceholderTitle(fetchResult.title))
+        ) {
+          const video = await readYouTubeOembed(targetUrl);
+          if (video) {
+            // music.youtube.com serves an "unsupported browser" title instead.
+            fetchResult.title = video.title;
+            if (fetchResult.topImageUrl === undefined) {
+              fetchResult.topImageUrl = video.topImageUrl;
+            }
           }
         }
 
