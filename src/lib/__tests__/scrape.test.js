@@ -22,6 +22,7 @@ describe('scrape request interception', () => {
     mockPage = {
       setRequestInterception: jest.fn().mockResolvedValue(),
       setUserAgent: jest.fn().mockResolvedValue(),
+      setBypassCSP: jest.fn().mockResolvedValue(),
       on: jest.fn((event, handler) => {
         if (event === 'request') requestHandler = handler;
       }),
@@ -157,6 +158,7 @@ describe('scrape request interception', () => {
     await scrape('https://example.test/');
 
     expect(mockPage.setUserAgent).toHaveBeenCalledTimes(1);
+    expect(mockPage.setBypassCSP).toHaveBeenCalledWith(true);
     const ua = mockPage.setUserAgent.mock.calls[0][0];
     expect(ua).toContain('Chrome/148.0.0.0');
     expect(ua).not.toContain('HeadlessChrome');
@@ -271,6 +273,7 @@ describe('scrape backend lifecycle', () => {
       newPage: jest.fn().mockResolvedValue({
         setRequestInterception: jest.fn().mockResolvedValue(),
         setUserAgent: jest.fn().mockResolvedValue(),
+        setBypassCSP: jest.fn().mockResolvedValue(),
         on: jest.fn(),
         goto: jest.fn().mockResolvedValue({
           headers: () => ({ 'content-type': 'text/html' }),
