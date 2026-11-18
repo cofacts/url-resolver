@@ -133,6 +133,9 @@ async function scrape(url) {
   const page = await browser.newPage();
   try {
     await page.setUserAgent(userAgent);
+    // A Trusted Types CSP (e.g. YouTube) rejects the string HTML that
+    // setContent() and Readability assign, leaving only the JS-disabled DOM.
+    await page.setBypassCSP(true);
     return await scrapePage(url, page);
   } finally {
     // Cleanup must cover setup failures too, without masking the scrape error

@@ -8,6 +8,11 @@ jest.mock('../../lib/facebookEmbed', () => ({
 }));
 const { resolveFacebookUrl } = require('../../lib/resolveFacebookUrl');
 const { readFacebookEmbed } = require('../../lib/facebookEmbed');
+jest.mock('../../lib/youtubeOembed', () => ({
+  ...jest.requireActual('../../lib/youtubeOembed'),
+  readYouTubeOembed: jest.fn(),
+}));
+const { readYouTubeOembed } = require('../../lib/youtubeOembed');
 jest.mock('../../lib/unshorten');
 jest.mock('../../lib/normalize');
 jest.mock('../../lib/fetchAndParseMeta');
@@ -714,5 +719,57 @@ describe('target resolution through resolveUrls', () => {
         successfully_resolved: true,
       })
     );
+  });
+
+  describe('YouTube', () => {
+    const video = 'https://www.youtube.com/watch?v=CC-Eg2vK5gw';
+
+    beforeEach(() => {
+      unshorten.mockResolvedValue({ url: video, status: 200 });
+      readYouTubeOembed.mockReset().mockResolvedValue({
+        title: 'Video title',
+        topImageUrl: 'https://i.ytimg.com/vi/CC-Eg2vK5gw/hqdefault.jpg',
+      });
+    });
+
+    it('replaces the placeholder title from oEmbed and skips the browser', async () => {
+      fetchAndParseMeta.mockResolvedValue(
+        new ScrapeResult({
+          canonical: video,
+          title: ' - YouTube',
+          summary: 'site blurb',
+          status: 200,
+        })
+      );
+      const call = makeCall('https://youtu.be/CC-Eg2vK5gw');
+      await resolveUrls(call);
+      expect(readYouTubeOembed).toHaveBeenCalledWith(video);
+      expect(scrape).not.toHaveBeenCalled();
+      expect(call.write).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Video title',
+          top_image_url: 'https://i.ytimg.com/vi/CC-Eg2vK5gw/hqdefault.jpg',
+          successfully_resolved: true,
+        })
+      );
+    });
+
+    it('keeps complete page metadata without asking oEmbed', async () => {
+      const call = makeCall(video);
+      await resolveUrls(call);
+      expect(readYouTubeOembed).not.toHaveBeenCalled();
+      expect(call.write).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'title' })
+      );
+    });
+
+    it('falls back to the browser when oEmbed fails', async () => {
+      readYouTubeOembed.mockResolvedValue(null);
+      fetchAndParseMeta.mockResolvedValue(
+        new ScrapeResult({ canonical: video, title: ' - YouTube' })
+      );
+      await resolveUrls(makeCall(video));
+      expect(scrape).toHaveBeenCalledWith(video);
+    });
   });
 });
